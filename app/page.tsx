@@ -55,11 +55,15 @@ export default async function HomePage() {
                 <p className="text-muted-foreground">{streamDescription}</p>
               </div>
 
-              {/* Video Player - FIXED: Removed event handler prop that caused deployment error */}
+              {/* Video Player - FIXED: Added missing onViewerCountChange prop */}
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 <StreamPlayer 
                   streamId={activeSession?.id}
                   isStreamer={false}
+                  onViewerCountChange={(count: number) => {
+                    // Handle viewer count changes
+                    console.log('Viewer count changed:', count)
+                  }}
                 />
               </div>
 
