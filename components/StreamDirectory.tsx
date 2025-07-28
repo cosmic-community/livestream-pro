@@ -167,6 +167,15 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
               </div>
             )}
 
+            {/* Category */}
+            {stream.metadata?.category && (
+              <div className="mt-2">
+                <span className="inline-flex items-center px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">
+                  {stream.metadata.category}
+                </span>
+              </div>
+            )}
+
             {/* Peak Viewers for ended streams */}
             {stream.metadata?.status === 'ended' && stream.metadata?.peak_viewers && stream.metadata.peak_viewers > 0 && (
               <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">

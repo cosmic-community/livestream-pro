@@ -24,7 +24,7 @@ export const cosmicRead = createBucketClient({
   apiEnvironment: "staging"
 })
 
-// Stream Sessions
+// Stream Sessions - Updated to use live-streams from Cosmic CMS
 export async function getStreamSessions(limit: number = 10): Promise<StreamSession[]> {
   try {
     // Check if required environment variables are available
@@ -34,13 +34,43 @@ export async function getStreamSessions(limit: number = 10): Promise<StreamSessi
     }
 
     const { objects } = await cosmic.objects
-      .find({ type: 'stream-sessions' })
+      .find({ type: 'live-streams' })
       .props(['id', 'title', 'slug', 'created_at', 'metadata'])
       .depth(1)
       .limit(limit)
       .sort('-created_at')
 
-    return objects || []
+    // Transform Cosmic live-streams to StreamSession format
+    const transformedObjects = objects?.map((liveStream: any) => ({
+      id: liveStream.id,
+      title: liveStream.title,
+      slug: liveStream.slug,
+      type: 'stream-sessions',
+      status: 'published',
+      created_at: liveStream.created_at,
+      modified_at: liveStream.modified_at || liveStream.created_at,
+      metadata: {
+        status: liveStream.metadata.stream_status?.key || 'offline',
+        platform: 'custom',
+        stream_key: liveStream.metadata.stream_key,
+        rtmp_url: liveStream.metadata.stream_url,
+        viewer_count: liveStream.metadata.viewer_count || 0,
+        peak_viewers: liveStream.metadata.viewer_count || 0,
+        duration: 0,
+        started_at: liveStream.metadata.started_at,
+        ended_at: null,
+        title: liveStream.metadata.stream_title || liveStream.title,
+        description: liveStream.metadata.description,
+        thumbnail: liveStream.metadata.thumbnail?.imgix_url,
+        tags: liveStream.metadata.tags?.split(',').map((tag: string) => tag.trim()) || [],
+        category: liveStream.metadata.category?.metadata?.name || liveStream.metadata.category?.title,
+        stream_type: 'live',
+        quality: 'auto',
+        peer_id: liveStream.metadata.stream_key
+      }
+    })) || []
+
+    return transformedObjects
   } catch (error: unknown) {
     console.error('Error fetching stream sessions:', error)
     const err = error as { status?: number }
@@ -61,11 +91,43 @@ export async function getStreamSession(id: string): Promise<StreamSession | null
     }
 
     const { object } = await cosmic.objects
-      .findOne({ type: 'stream-sessions', id })
+      .findOne({ type: 'live-streams', id })
       .props(['id', 'title', 'slug', 'created_at', 'metadata'])
       .depth(1)
 
-    return object || null
+    if (!object) return null
+
+    // Transform Cosmic live-stream to StreamSession format
+    const transformedObject: StreamSession = {
+      id: object.id,
+      title: object.title,
+      slug: object.slug,
+      type: 'stream-sessions',
+      status: 'published',
+      created_at: object.created_at,
+      modified_at: object.modified_at || object.created_at,
+      metadata: {
+        status: object.metadata.stream_status?.key || 'offline',
+        platform: 'custom',
+        stream_key: object.metadata.stream_key,
+        rtmp_url: object.metadata.stream_url,
+        viewer_count: object.metadata.viewer_count || 0,
+        peak_viewers: object.metadata.viewer_count || 0,
+        duration: 0,
+        started_at: object.metadata.started_at,
+        ended_at: null,
+        title: object.metadata.stream_title || object.title,
+        description: object.metadata.description,
+        thumbnail: object.metadata.thumbnail?.imgix_url,
+        tags: object.metadata.tags?.split(',').map((tag: string) => tag.trim()) || [],
+        category: object.metadata.category?.metadata?.name || object.metadata.category?.title,
+        stream_type: 'live',
+        quality: 'auto',
+        peer_id: object.metadata.stream_key
+      }
+    }
+
+    return transformedObject
   } catch (error: unknown) {
     console.error('Error fetching stream session:', error)
     const err = error as { status?: number }
