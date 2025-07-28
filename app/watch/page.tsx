@@ -10,7 +10,7 @@ export default async function WatchPage() {
   const siteSettings = await getSiteSettings()
   
   if (siteSettings?.metadata.maintenance_mode) {
-    return <MaintenanceMode settings={siteSettings} />
+    return <MaintenanceMode siteSettings={siteSettings} />
   }
 
   // Get all streams

@@ -13,7 +13,7 @@ export default async function HomePage() {
   const siteSettings = await getSiteSettings()
   
   if (siteSettings?.metadata.maintenance_mode) {
-    return <MaintenanceMode settings={siteSettings} />
+    return <MaintenanceMode siteSettings={siteSettings} />
   }
 
   // Get current active stream session
