@@ -1,4 +1,4 @@
-import { StreamConfig, PeerConnection } from '@/types'
+import { StreamConfig } from '@/types'
 
 class WebRTCManager {
   private peers: Map<string, RTCPeerConnection> = new Map()
@@ -23,7 +23,7 @@ class WebRTCManager {
     this.localStream = stream || null
 
     // Update all peer connections with new stream
-    for (const [peerId, peer] of this.peers) {
+    for (const [peerId, peer] of Array.from(this.peers.entries())) {
       if (this.localStream) {
         // Remove old tracks
         const senders = peer.getSenders()
@@ -138,7 +138,7 @@ class WebRTCManager {
   }
 
   closeAllConnections(): void {
-    for (const [peerId, peer] of this.peers) {
+    for (const [peerId, peer] of Array.from(this.peers.entries())) {
       peer.close()
     }
     this.peers.clear()

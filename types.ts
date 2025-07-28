@@ -42,6 +42,8 @@ export interface StreamSession extends CosmicObject {
     }
     tags?: string[]
     category?: string
+    stream_type?: string
+    quality?: string
   }
 }
 
@@ -92,12 +94,19 @@ export interface PeerConfig {
   secure: boolean
 }
 
+// WebRTC Types
+export interface PeerConnection extends RTCPeerConnection {
+  peerId: string
+  connected: boolean
+}
+
 // Component Props Types
 export interface StreamPlayerProps {
   streamId?: string
   isStreamer: boolean
   className?: string
   onViewerCountChange?: (count: number) => void
+  activeSession?: StreamSession | null
 }
 
 export interface StreamControlsProps {
