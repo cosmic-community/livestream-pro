@@ -1,3 +1,5 @@
+import { useState, useEffect, useCallback } from 'react'
+
 export interface WebSocketMessage {
   type: string
   payload?: any
@@ -213,8 +215,8 @@ class WebSocketManager {
     const pingInterval = setInterval(() => {
       if (connection.socket.readyState === WebSocket.OPEN) {
         if (!connection.isAlive) {
-          // Connection is stale, close it
-          connection.socket.terminate()
+          // Connection is stale, close it using the correct method
+          connection.socket.close(1000, 'Connection timeout')
           clearInterval(pingInterval)
           return
         }
@@ -342,7 +344,7 @@ export function useWebSocket(url: string, sessionId?: string, userId?: string) {
         connectionInstance.socket.addEventListener('message', (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data)
-            setMessages(prev => [...prev, message])
+            setMessages((prev: WebSocketMessage[]) => [...prev, message])
           } catch (err) {
             console.error('Failed to parse WebSocket message:', err)
           }

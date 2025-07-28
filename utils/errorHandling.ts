@@ -1,3 +1,5 @@
+import { useState, useEffect, useCallback } from 'react'
+
 export interface StreamError {
   code: string
   message: string
@@ -512,7 +514,7 @@ export function useErrorHandler() {
 
   useEffect(() => {
     const unsubscribe = errorHandler.onError((error) => {
-      setErrors(prev => [...prev, error].slice(-10)) // Keep last 10 errors
+      setErrors((prev: StreamError[]) => [...prev, error].slice(-10)) // Keep last 10 errors
       setHasErrors(true)
     })
 
