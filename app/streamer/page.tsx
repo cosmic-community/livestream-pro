@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import StreamPlayer from '@/components/StreamPlayer'
 import StreamControls from '@/components/StreamControls'
 import ViewerCount from '@/components/ViewerCount'
@@ -95,7 +96,14 @@ export default function StreamerPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-foreground">Streamer Dashboard</h1>
+              <Link 
+                href="/"
+                className="text-xl font-bold text-foreground hover:text-blue-400 transition-colors"
+              >
+                ← LiveStream Pro
+              </Link>
+              <div className="text-muted-foreground">|</div>
+              <h1 className="text-xl font-semibold text-foreground">Streamer Dashboard</h1>
               <StreamStatus 
                 status={isStreaming ? 'live' : 'offline'} 
                 duration={streamStats.duration} 
@@ -161,6 +169,25 @@ export default function StreamerPage() {
                       {Math.round(streamStats.bitrate / 1000)}k
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-muted/30 rounded-lg p-6">
+                <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <Link
+                    href="/"
+                    className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg font-medium transition-colors"
+                  >
+                    View Public Stream
+                  </Link>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-center rounded-lg font-medium transition-colors"
+                  >
+                    Refresh Dashboard
+                  </button>
                 </div>
               </div>
 

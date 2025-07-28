@@ -66,7 +66,8 @@ export default function ScreenShare({
         setError(null)
       } catch (err) {
         console.error('Failed to start screen share:', err)
-        if (err instanceof Error && err.name === 'NotAllowedError') {
+        const error = err as Error
+        if (error && error.name === 'NotAllowedError') {
           setError('Screen sharing permission denied')
         } else {
           setError('Failed to start screen sharing')

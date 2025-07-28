@@ -35,7 +35,8 @@ export async function getStreamSessions(limit: number = 10): Promise<StreamSessi
     return objects || []
   } catch (error: unknown) {
     console.error('Error fetching stream sessions:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return []
     }
     throw error
@@ -52,7 +53,8 @@ export async function getStreamSession(id: string): Promise<StreamSession | null
     return object || null
   } catch (error: unknown) {
     console.error('Error fetching stream session:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return null
     }
     throw error
@@ -112,7 +114,8 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
     return object || null
   } catch (error: unknown) {
     console.error('Error fetching site settings:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return null
     }
     throw error
@@ -146,7 +149,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings | null> {
     return object || null
   } catch (error: unknown) {
     console.error('Error fetching platform settings:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return null
     }
     throw error
@@ -237,7 +241,8 @@ export async function getStreamAnalytics(
     return objects || []
   } catch (error: unknown) {
     console.error('Error fetching stream analytics:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return []
     }
     throw error
@@ -255,7 +260,8 @@ export async function getObjectById<T = any>(id: string): Promise<T | null> {
     return object || null
   } catch (error: unknown) {
     console.error('Error fetching object by ID:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return null
     }
     throw error
@@ -285,7 +291,8 @@ export async function searchObjects(
     return filtered
   } catch (error: unknown) {
     console.error('Error searching objects:', error)
-    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+    const err = error as { status?: number }
+    if (err && err.status === 404) {
       return []
     }
     throw error

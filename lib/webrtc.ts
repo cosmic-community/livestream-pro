@@ -1,225 +1,260 @@
-export const webRTCConfig: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-  ],
-  iceCandidatePoolSize: 10,
-}
+import { StreamConfig, PeerConnection } from '@/types'
 
-export class WebRTCConnection {
-  private peerConnection: RTCPeerConnection
+class WebRTCManager {
+  private peers: Map<string, RTCPeerConnection> = new Map()
   private localStream: MediaStream | null = null
-  private remoteStream: MediaStream | null = null
-  private onRemoteStream?: (stream: MediaStream) => void
-  private onConnectionStateChange?: (state: RTCPeerConnectionState) => void
+  private configuration: RTCConfiguration
 
-  constructor(
-    onRemoteStream?: (stream: MediaStream) => void,
-    onConnectionStateChange?: (state: RTCPeerConnectionState) => void
-  ) {
-    this.peerConnection = new RTCPeerConnection(webRTCConfig)
-    this.onRemoteStream = onRemoteStream
-    this.onConnectionStateChange = onConnectionStateChange
-    
-    this.setupPeerConnection()
-  }
-
-  private setupPeerConnection() {
-    // Handle remote stream
-    this.peerConnection.ontrack = (event) => {
-      const [remoteStream] = event.streams
-      this.remoteStream = remoteStream || null
-      if (this.onRemoteStream && remoteStream) {
-        this.onRemoteStream(remoteStream)
-      }
-    }
-
-    // Handle connection state changes
-    this.peerConnection.onconnectionstatechange = () => {
-      if (this.onConnectionStateChange) {
-        this.onConnectionStateChange(this.peerConnection.connectionState)
-      }
-    }
-
-    // Handle ICE connection state
-    this.peerConnection.oniceconnectionstatechange = () => {
-      console.log('ICE connection state:', this.peerConnection.iceConnectionState)
-    }
-
-    // Handle ICE gathering state
-    this.peerConnection.onicegatheringstatechange = () => {
-      console.log('ICE gathering state:', this.peerConnection.iceGatheringState)
+  constructor() {
+    this.configuration = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
     }
   }
 
-  async addLocalStream(stream: MediaStream): Promise<void> {
-    this.localStream = stream
-    
-    // Add tracks to peer connection
-    stream.getTracks().forEach(track => {
-      if (this.localStream) {
-        this.peerConnection.addTrack(track, this.localStream)
-      }
-    })
-  }
-
-  async createOffer(): Promise<RTCSessionDescriptionInit> {
-    try {
-      const offer = await this.peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-      })
-      
-      await this.peerConnection.setLocalDescription(offer)
-      return offer
-    } catch (error) {
-      console.error('Error creating offer:', error)
-      throw error
-    }
-  }
-
-  async createAnswer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
-    try {
-      await this.peerConnection.setRemoteDescription(offer)
-      
-      const answer = await this.peerConnection.createAnswer()
-      await this.peerConnection.setLocalDescription(answer)
-      
-      return answer
-    } catch (error) {
-      console.error('Error creating answer:', error)
-      throw error
-    }
-  }
-
-  async setRemoteAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
-    try {
-      await this.peerConnection.setRemoteDescription(answer)
-    } catch (error) {
-      console.error('Error setting remote answer:', error)
-      throw error
-    }
-  }
-
-  async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-    try {
-      await this.peerConnection.addIceCandidate(candidate)
-    } catch (error) {
-      console.error('Error adding ICE candidate:', error)
-      throw error
-    }
-  }
-
-  onIceCandidate(callback: (candidate: RTCIceCandidate | null) => void): void {
-    this.peerConnection.onicecandidate = (event) => {
-      callback(event.candidate)
-    }
-  }
-
-  getConnectionState(): RTCPeerConnectionState {
-    return this.peerConnection.connectionState
-  }
-
-  getLocalStream(): MediaStream | null {
-    return this.localStream
-  }
-
-  getRemoteStream(): MediaStream | null {
-    return this.remoteStream
-  }
-
-  close(): void {
-    // Stop local stream tracks
+  async setLocalStream(stream: MediaStream | null): Promise<void> {
+    // Stop previous stream if exists
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop())
     }
 
-    // Stop remote stream tracks
-    if (this.remoteStream) {
-      this.remoteStream.getTracks().forEach(track => track.stop())
+    this.localStream = stream || null
+
+    // Update all peer connections with new stream
+    for (const [peerId, peer] of this.peers) {
+      if (this.localStream) {
+        // Remove old tracks
+        const senders = peer.getSenders()
+        for (const sender of senders) {
+          if (sender.track) {
+            peer.removeTrack(sender)
+          }
+        }
+
+        // Add new tracks
+        this.localStream.getTracks().forEach(track => {
+          if (this.localStream) {
+            peer.addTrack(track, this.localStream)
+          }
+        })
+      }
+    }
+  }
+
+  async createPeerConnection(peerId: string): Promise<RTCPeerConnection> {
+    const peer = new RTCPeerConnection(this.configuration)
+    this.peers.set(peerId, peer)
+
+    // Add local stream tracks if available
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => {
+        if (this.localStream) {
+          peer.addTrack(track, this.localStream)
+        }
+      })
     }
 
-    // Close peer connection
-    this.peerConnection.close()
+    // Handle ICE candidates
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        this.sendICECandidate(peerId, event.candidate)
+      }
+    }
 
-    this.localStream = null
-    this.remoteStream = null
+    // Handle remote stream
+    peer.ontrack = (event) => {
+      this.handleRemoteStream(peerId, event.streams[0])
+    }
+
+    // Handle connection state changes
+    peer.onconnectionstatechange = () => {
+      console.log(`Peer ${peerId} connection state:`, peer.connectionState)
+      
+      if (peer.connectionState === 'disconnected' || 
+          peer.connectionState === 'failed' || 
+          peer.connectionState === 'closed') {
+        this.removePeer(peerId)
+      }
+    }
+
+    return peer
+  }
+
+  async createOffer(peerId: string): Promise<RTCSessionDescriptionInit> {
+    const peer = this.peers.get(peerId)
+    if (!peer) {
+      throw new Error(`Peer ${peerId} not found`)
+    }
+
+    const offer = await peer.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    })
+
+    await peer.setLocalDescription(offer)
+    return offer
+  }
+
+  async createAnswer(peerId: string): Promise<RTCSessionDescriptionInit> {
+    const peer = this.peers.get(peerId)
+    if (!peer) {
+      throw new Error(`Peer ${peerId} not found`)
+    }
+
+    const answer = await peer.createAnswer()
+    await peer.setLocalDescription(answer)
+    return answer
+  }
+
+  async setRemoteDescription(
+    peerId: string, 
+    description: RTCSessionDescriptionInit
+  ): Promise<void> {
+    const peer = this.peers.get(peerId)
+    if (!peer) {
+      throw new Error(`Peer ${peerId} not found`)
+    }
+
+    await peer.setRemoteDescription(description)
+  }
+
+  async addICECandidate(peerId: string, candidate: RTCIceCandidateInit): Promise<void> {
+    const peer = this.peers.get(peerId)
+    if (!peer) {
+      throw new Error(`Peer ${peerId} not found`)
+    }
+
+    await peer.addIceCandidate(candidate)
+  }
+
+  removePeer(peerId: string): void {
+    const peer = this.peers.get(peerId)
+    if (peer) {
+      peer.close()
+      this.peers.delete(peerId)
+    }
+  }
+
+  closeAllConnections(): void {
+    for (const [peerId, peer] of this.peers) {
+      peer.close()
+    }
+    this.peers.clear()
+
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => track.stop())
+      this.localStream = null
+    }
+  }
+
+  getConnectionStats(peerId: string): Promise<RTCStatsReport> | null {
+    const peer = this.peers.get(peerId)
+    if (!peer) {
+      return null
+    }
+
+    return peer.getStats()
+  }
+
+  getPeerConnection(peerId: string): RTCPeerConnection | undefined {
+    return this.peers.get(peerId)
+  }
+
+  getAllPeers(): Map<string, RTCPeerConnection> {
+    return this.peers
+  }
+
+  // Methods to be implemented by subclasses or event handlers
+  private sendICECandidate(peerId: string, candidate: RTCIceCandidate): void {
+    // This should be implemented to send ICE candidates via signaling server
+    console.log(`Send ICE candidate to ${peerId}:`, candidate)
+  }
+
+  private handleRemoteStream(peerId: string, stream: MediaStream): void {
+    // This should be implemented to handle incoming remote streams
+    console.log(`Received remote stream from ${peerId}:`, stream)
+  }
+
+  // Utility methods for media capture
+  async getCameraStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+    const defaultConstraints: MediaStreamConstraints = {
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    }
+
+    return await navigator.mediaDevices.getUserMedia(constraints || defaultConstraints)
+  }
+
+  async getScreenStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+    const defaultConstraints: MediaStreamConstraints = {
+      video: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 }
+      },
+      audio: true
+    }
+
+    return await navigator.mediaDevices.getDisplayMedia(constraints || defaultConstraints)
+  }
+
+  async getAudioDevices(): Promise<MediaDeviceInfo[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return devices.filter(device => device.kind === 'audioinput')
+  }
+
+  async getVideoDevices(): Promise<MediaDeviceInfo[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return devices.filter(device => device.kind === 'videoinput')
   }
 }
 
-// Utility functions for WebRTC
-export async function getUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
-  try {
-    return await navigator.mediaDevices.getUserMedia(constraints)
-  } catch (error) {
-    console.error('Error getting user media:', error)
-    throw new Error('Failed to access camera/microphone')
-  }
-}
+// Export singleton instance
+export const webrtcManager = new WebRTCManager()
 
-export async function getDisplayMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
-  try {
-    return await navigator.mediaDevices.getDisplayMedia(constraints)
-  } catch (error) {
-    console.error('Error getting display media:', error)
-    throw new Error('Failed to access screen share')
-  }
-}
+// Export utility functions
+export const mediaUtils = {
+  async getCameraPermission(): Promise<boolean> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (error) {
+      console.error('Camera permission denied:', error)
+      return false
+    }
+  },
 
-export async function enumerateDevices(): Promise<MediaDeviceInfo[]> {
-  try {
-    return await navigator.mediaDevices.enumerateDevices()
-  } catch (error) {
-    console.error('Error enumerating devices:', error)
-    throw new Error('Failed to get media devices')
-  }
-}
+  async getScreenPermission(): Promise<boolean> {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (error) {
+      console.error('Screen share permission denied:', error)
+      return false
+    }
+  },
 
-export function combineStreams(videoStream: MediaStream, audioStream: MediaStream): MediaStream {
-  const combinedStream = new MediaStream()
-  
-  // Add video tracks
-  videoStream.getVideoTracks().forEach(track => {
-    combinedStream.addTrack(track)
-  })
-  
-  // Add audio tracks
-  audioStream.getAudioTracks().forEach(track => {
-    combinedStream.addTrack(track)
-  })
-  
-  return combinedStream
-}
+  isWebRTCSupported(): boolean {
+    return !!(
+      window.RTCPeerConnection &&
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getUserMedia
+    )
+  },
 
-export function replaceVideoTrack(
-  peerConnection: RTCPeerConnection,
-  newTrack: MediaStreamTrack
-): Promise<void> {
-  const sender = peerConnection.getSenders().find(s => 
-    s.track && s.track.kind === 'video'
-  )
-  
-  if (sender) {
-    return sender.replaceTrack(newTrack)
+  isMobile(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
-  
-  return Promise.reject(new Error('No video sender found'))
-}
-
-export function replaceAudioTrack(
-  peerConnection: RTCPeerConnection,
-  newTrack: MediaStreamTrack
-): Promise<void> {
-  const sender = peerConnection.getSenders().find(s => 
-    s.track && s.track.kind === 'audio'
-  )
-  
-  if (sender) {
-    return sender.replaceTrack(newTrack)
-  }
-  
-  return Promise.reject(new Error('No audio sender found'))
 }
