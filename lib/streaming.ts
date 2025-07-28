@@ -29,6 +29,7 @@ export class StreamManager {
     bitrate: 0,
     quality: 'auto',
   };
+  private streamId: string | null = null;
 
   constructor() {
     // Initialize Peer.js when available
@@ -40,29 +41,61 @@ export class StreamManager {
   private async initializePeer() {
     try {
       const { Peer } = await import('peerjs');
-      this.peer = new Peer({
+      
+      // Generate a unique streamer ID
+      this.streamId = `streamer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      this.peer = new Peer(this.streamId, {
         config: webRTCConfig,
       });
 
       this.peer.on('open', (id: string) => {
-        console.log('Peer connection opened:', id);
+        console.log('Streamer peer connection opened:', id);
+        this.streamId = id;
       });
 
       this.peer.on('call', (call: any) => {
+        console.log('Incoming call from viewer:', call.peer);
+        
         // Answer incoming calls with local stream
         if (this.localStream) {
           call.answer(this.localStream);
+          console.log('Answered call with stream tracks:', 
+            this.localStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`));
+        } else {
+          // Answer with empty stream to maintain connection
+          call.answer(new MediaStream());
+          console.log('Answered call with empty stream (no local stream available)');
         }
+
+        // Track connection
+        call.on('stream', (remoteStream: MediaStream) => {
+          console.log('Received stream from viewer (unexpected):', remoteStream);
+        });
+
+        call.on('close', () => {
+          console.log('Call closed with viewer:', call.peer);
+        });
       });
 
       this.peer.on('connection', (conn: any) => {
+        console.log('New viewer connected:', conn.peer);
         this.connections.set(conn.peer, conn);
         this.updateViewerCount();
 
+        conn.on('data', (data: any) => {
+          console.log('Received data from viewer:', data);
+        });
+
         conn.on('close', () => {
+          console.log('Viewer disconnected:', conn.peer);
           this.connections.delete(conn.peer);
           this.updateViewerCount();
         });
+      });
+
+      this.peer.on('error', (error: any) => {
+        console.error('Peer error:', error);
       });
 
     } catch (error) {
@@ -72,24 +105,12 @@ export class StreamManager {
 
   async startStream(config: StreamConfig): Promise<string> {
     try {
-      // Get webcam stream
-      if (config.video || config.audio) {
-        this.localStream = await navigator.mediaDevices.getUserMedia({
-          video: config.video ? {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 }
-          } : false,
-          audio: config.audio ? {
-            echoCancellation: true,
-            noiseSuppression: true
-          } : false,
-        });
-      }
+      console.log('Starting stream with config:', config);
 
-      // Get screen stream if requested
+      let combinedStream: MediaStream | null = null;
+
+      // Handle screen sharing
       if (config.screen) {
-        // Check if screen sharing is supported
         if (!navigator.mediaDevices?.getDisplayMedia) {
           throw new Error('Screen sharing is not supported in this browser');
         }
@@ -107,74 +128,87 @@ export class StreamManager {
           }
         });
 
+        console.log('Screen stream acquired with tracks:', 
+          this.screenStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`));
+
         // Handle when user stops sharing via browser UI
         const videoTrack = this.screenStream.getVideoTracks()[0];
         if (videoTrack) {
           videoTrack.addEventListener('ended', () => {
             console.log('Screen sharing ended by user');
-            this.screenStream = null;
-            // If we were using screen stream as primary, fall back to webcam
-            if (!this.localStream && config.video) {
-              // Try to get webcam stream as fallback
-              navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: config.audio
-              }).then(stream => {
-                this.localStream = stream;
-              }).catch(console.error);
-            }
+            this.handleScreenShareEnded();
           });
         }
 
-        // Combine streams if both webcam and screen
-        if (this.localStream && config.video) {
-          const combinedStream = new MediaStream();
+        combinedStream = this.screenStream;
+      }
+
+      // Handle webcam/microphone
+      if (config.video || config.audio) {
+        const webcamStream = await navigator.mediaDevices.getUserMedia({
+          video: config.video ? {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          } : false,
+          audio: config.audio ? {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } : false,
+        });
+
+        console.log('Webcam stream acquired with tracks:', 
+          webcamStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`));
+
+        if (this.screenStream) {
+          // Combine screen and webcam streams
+          const mergedStream = new MediaStream();
           
-          // Add screen video track as primary
-          const screenVideoTracks = this.screenStream.getVideoTracks();
-          if (screenVideoTracks.length > 0) {
-            const videoTrack = screenVideoTracks[0];
-            if (videoTrack) {
-              combinedStream.addTrack(videoTrack);
-            }
-          }
+          // Add screen video (primary)
+          this.screenStream.getVideoTracks().forEach(track => {
+            mergedStream.addTrack(track);
+          });
           
-          // Add audio from webcam or screen (prefer screen audio if available)
+          // Add audio (prefer screen audio, fallback to webcam)
           const screenAudioTracks = this.screenStream.getAudioTracks();
           if (screenAudioTracks.length > 0) {
-            const audioTrack = screenAudioTracks[0];
-            if (audioTrack) {
-              combinedStream.addTrack(audioTrack);
-            }
+            screenAudioTracks.forEach(track => {
+              mergedStream.addTrack(track);
+            });
           } else {
-            // Fallback to webcam audio
-            const webcamAudioTracks = this.localStream.getAudioTracks();
-            if (webcamAudioTracks.length > 0) {
-              const audioTrack = webcamAudioTracks[0];
-              if (audioTrack) {
-                combinedStream.addTrack(audioTrack);
-              }
-            }
+            // Use webcam audio as fallback
+            webcamStream.getAudioTracks().forEach(track => {
+              mergedStream.addTrack(track);
+            });
           }
+
+          combinedStream = mergedStream;
           
-          this.localStream = combinedStream;
+          // Store reference to webcam stream for later use
+          this.localStream = webcamStream;
         } else {
-          this.localStream = this.screenStream;
+          // Use webcam stream only
+          combinedStream = webcamStream;
+          this.localStream = webcamStream;
         }
       }
 
-      if (!this.localStream) {
-        throw new Error('Failed to get media stream');
+      if (!combinedStream) {
+        throw new Error('No media stream could be acquired');
       }
+
+      // Set the combined stream as the main local stream
+      this.localStream = combinedStream;
 
       this.streamStats.isLive = true;
       this.streamStats.quality = config.quality;
       
-      console.log('Stream started successfully with tracks:', 
-        this.localStream.getTracks().map(track => `${track.kind}: ${track.label}`));
+      console.log('Stream started successfully with combined tracks:', 
+        this.localStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`));
       
       // Return peer ID for viewers to connect
-      return this.peer?.id || 'no-peer-id';
+      return this.streamId || this.peer?.id || 'unknown-stream-id';
     } catch (error) {
       console.error('Failed to start stream:', error);
       throw new Error(`Failed to start stream: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -182,15 +216,18 @@ export class StreamManager {
   }
 
   stopStream(): void {
-    // Stop all tracks
+    console.log('Stopping stream...');
+
+    // Stop all tracks in local stream
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
         track.stop();
-        console.log('Stopped track:', track.kind, track.label);
+        console.log('Stopped local track:', track.kind, track.label);
       });
       this.localStream = null;
     }
 
+    // Stop screen stream separately if it exists
     if (this.screenStream) {
       this.screenStream.getTracks().forEach(track => {
         track.stop();
@@ -200,13 +237,34 @@ export class StreamManager {
     }
 
     // Close all peer connections
-    this.connections.forEach(conn => conn.close());
+    this.connections.forEach((conn, peerId) => {
+      try {
+        conn.close();
+        console.log('Closed connection to viewer:', peerId);
+      } catch (error) {
+        console.error('Error closing connection to', peerId, ':', error);
+      }
+    });
     this.connections.clear();
 
     this.streamStats.isLive = false;
     this.streamStats.viewerCount = 0;
     
     console.log('Stream stopped successfully');
+  }
+
+  private handleScreenShareEnded(): void {
+    console.log('Handling screen share end...');
+    
+    // If we have a webcam stream, switch back to it
+    if (this.localStream !== this.screenStream) {
+      // We have a separate webcam stream, use it
+      this.screenStream = null;
+      // The localStream should still have webcam tracks
+    } else {
+      // Screen was the only stream, stop everything
+      this.stopStream();
+    }
   }
 
   getLocalStream(): MediaStream | null {
@@ -221,8 +279,13 @@ export class StreamManager {
     return { ...this.streamStats };
   }
 
+  getStreamId(): string | null {
+    return this.streamId;
+  }
+
   private updateViewerCount(): void {
     this.streamStats.viewerCount = this.connections.size;
+    console.log('Updated viewer count:', this.streamStats.viewerCount);
   }
 
   // Connect as viewer
@@ -232,17 +295,31 @@ export class StreamManager {
     }
 
     return new Promise((resolve, reject) => {
-      const call = this.peer.call(streamerId, new MediaStream());
+      console.log('Attempting to connect to streamer:', streamerId);
       
+      // Create a dummy stream for the call (required by PeerJS)
+      const dummyStream = new MediaStream();
+      
+      const call = this.peer.call(streamerId, dummyStream);
+      
+      if (!call) {
+        reject(new Error('Failed to initiate call to streamer'));
+        return;
+      }
+
       call.on('stream', (remoteStream: MediaStream) => {
         console.log('Received remote stream with tracks:', 
-          remoteStream.getTracks().map(track => `${track.kind}: ${track.label}`));
+          remoteStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`));
         resolve(remoteStream);
       });
 
       call.on('error', (error: any) => {
         console.error('Call error:', error);
         reject(error);
+      });
+
+      call.on('close', () => {
+        console.log('Call to streamer closed');
       });
 
       // Timeout after 10 seconds
@@ -255,6 +332,18 @@ export class StreamManager {
   // Check if screen sharing is supported
   isScreenShareSupported(): boolean {
     return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  }
+
+  // Destroy peer connection
+  destroy(): void {
+    this.stopStream();
+    
+    if (this.peer) {
+      this.peer.destroy();
+      this.peer = null;
+    }
+    
+    this.streamId = null;
   }
 }
 
@@ -325,5 +414,67 @@ export const screenShareUtils = {
     }
 
     return navigator.mediaDevices.getSupportedConstraints();
+  }
+};
+
+// Media device utilities
+export const mediaDeviceUtils = {
+  async getAvailableDevices(): Promise<{
+    audioDevices: MediaDeviceInfo[];
+    videoDevices: MediaDeviceInfo[];
+  }> {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return {
+        audioDevices: devices.filter(device => device.kind === 'audioinput'),
+        videoDevices: devices.filter(device => device.kind === 'videoinput')
+      };
+    } catch (error) {
+      console.error('Failed to enumerate devices:', error);
+      return { audioDevices: [], videoDevices: [] };
+    }
+  },
+
+  async checkPermissions(): Promise<{
+    camera: boolean;
+    microphone: boolean;
+    screen: boolean;
+  }> {
+    const permissions = {
+      camera: false,
+      microphone: false,
+      screen: false
+    };
+
+    // Check camera permission
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      permissions.camera = true;
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.warn('Camera permission denied:', error);
+    }
+
+    // Check microphone permission
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      permissions.microphone = true;
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.warn('Microphone permission denied:', error);
+    }
+
+    // Check screen share permission
+    if (screenShareUtils.isSupported()) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        permissions.screen = true;
+        stream.getTracks().forEach(track => track.stop());
+      } catch (error) {
+        console.warn('Screen share permission denied:', error);
+      }
+    }
+
+    return permissions;
   }
 };
