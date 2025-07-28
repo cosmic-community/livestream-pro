@@ -33,9 +33,9 @@ export async function getStreamSessions(limit: number = 10): Promise<StreamSessi
       .sort('-created_at')
 
     return objects || []
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching stream sessions:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return []
     }
     throw error
@@ -50,9 +50,9 @@ export async function getStreamSession(id: string): Promise<StreamSession | null
       .depth(1)
 
     return object || null
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching stream session:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return null
     }
     throw error
@@ -70,7 +70,7 @@ export async function createStreamSession(data: CreateStreamSessionData): Promis
     })
 
     return object
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating stream session:', error)
     throw error
   }
@@ -86,7 +86,7 @@ export async function updateStreamSession(
     })
 
     return object
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating stream session:', error)
     throw error
   }
@@ -95,7 +95,7 @@ export async function updateStreamSession(
 export async function deleteStreamSession(id: string): Promise<void> {
   try {
     await cosmic.objects.deleteOne(id)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting stream session:', error)
     throw error
   }
@@ -110,9 +110,9 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
       .depth(1)
 
     return object || null
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching site settings:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return null
     }
     throw error
@@ -129,7 +129,7 @@ export async function updateSiteSettings(
     })
 
     return object
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating site settings:', error)
     throw error
   }
@@ -144,9 +144,9 @@ export async function getPlatformSettings(): Promise<PlatformSettings | null> {
       .depth(1)
 
     return object || null
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching platform settings:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return null
     }
     throw error
@@ -163,7 +163,7 @@ export async function updatePlatformSettings(
     })
 
     return object
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating platform settings:', error)
     throw error
   }
@@ -186,7 +186,7 @@ export async function createStreamAnalytics(data: {
     })
 
     return object
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating stream analytics:', error)
     throw error
   }
@@ -235,9 +235,9 @@ export async function getStreamAnalytics(
       .sort('-created_at')
 
     return objects || []
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching stream analytics:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return []
     }
     throw error
@@ -253,9 +253,9 @@ export async function getObjectById<T = any>(id: string): Promise<T | null> {
       .depth(1)
 
     return object || null
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching object by ID:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return null
     }
     throw error
@@ -277,15 +277,15 @@ export async function searchObjects(
       .limit(limit)
 
     // Filter results that contain the search term (case-insensitive)
-    const filtered = objects?.filter(obj => 
+    const filtered = objects?.filter((obj: any) => 
       obj.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       JSON.stringify(obj.metadata).toLowerCase().includes(searchTerm.toLowerCase())
     ) || []
 
     return filtered
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching objects:', error)
-    if (error.status === 404) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
       return []
     }
     throw error

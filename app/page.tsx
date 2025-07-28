@@ -3,10 +3,10 @@ import StreamControls from '@/components/StreamControls'
 import ViewerCount from '@/components/ViewerCount'
 import StreamStatus from '@/components/StreamStatus'
 import StreamHistory from '@/components/StreamHistory'
-import { getActiveStreamSession, getPlatformSettings } from '@/lib/cosmic'
+import { getStreamSession, getPlatformSettings } from '@/lib/cosmic'
 
 export default async function HomePage() {
-  const activeSession = await getActiveStreamSession()
+  const activeSession = await getStreamSession('active') // Fixed function name
   const settings = await getPlatformSettings()
   
   const isLive = activeSession?.metadata.status === 'live'

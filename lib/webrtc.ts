@@ -31,8 +31,8 @@ export class WebRTCConnection {
     // Handle remote stream
     this.peerConnection.ontrack = (event) => {
       const [remoteStream] = event.streams
-      this.remoteStream = remoteStream
-      if (this.onRemoteStream) {
+      this.remoteStream = remoteStream || null
+      if (this.onRemoteStream && remoteStream) {
         this.onRemoteStream(remoteStream)
       }
     }
@@ -60,7 +60,9 @@ export class WebRTCConnection {
     
     // Add tracks to peer connection
     stream.getTracks().forEach(track => {
-      this.peerConnection.addTrack(track, stream)
+      if (this.localStream) {
+        this.peerConnection.addTrack(track, this.localStream)
+      }
     })
   }
 
@@ -158,7 +160,7 @@ export async function getUserMedia(constraints: MediaStreamConstraints): Promise
   }
 }
 
-export async function getDisplayMedia(constraints?: DisplayMediaStreamConstraints): Promise<MediaStream> {
+export async function getDisplayMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
   try {
     return await navigator.mediaDevices.getDisplayMedia(constraints)
   } catch (error) {

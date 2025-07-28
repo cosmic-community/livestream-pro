@@ -37,10 +37,10 @@ export default function WebcamCapture({
         
         // Set default devices
         if (videoInputs.length > 0 && !selectedVideoDevice) {
-          setSelectedVideoDevice(videoInputs[0].deviceId)
+          setSelectedVideoDevice(videoInputs[0]?.deviceId || '')
         }
         if (audioInputs.length > 0 && !selectedAudioDevice) {
-          setSelectedAudioDevice(audioInputs[0].deviceId)
+          setSelectedAudioDevice(audioInputs[0]?.deviceId || '')
         }
       } catch (err) {
         console.error('Failed to get media devices:', err)

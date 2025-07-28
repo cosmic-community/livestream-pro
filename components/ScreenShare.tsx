@@ -34,7 +34,7 @@ export default function ScreenShare({
       }
 
       try {
-        const constraints: DisplayMediaStreamConstraints = {
+        const constraints: MediaStreamConstraints = {
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
@@ -46,12 +46,15 @@ export default function ScreenShare({
         const screenStream = await navigator.mediaDevices.getDisplayMedia(constraints)
         
         // Handle when user stops sharing via browser UI
-        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-          setIsSharing(false)
-          setStream(null)
-          onStreamChange(null)
-          onToggle() // This will set isEnabled to false
-        })
+        const videoTrack = screenStream.getVideoTracks()[0]
+        if (videoTrack) {
+          videoTrack.addEventListener('ended', () => {
+            setIsSharing(false)
+            setStream(null)
+            onStreamChange(null)
+            onToggle() // This will set isEnabled to false
+          })
+        }
         
         if (videoRef.current) {
           videoRef.current.srcObject = screenStream
@@ -121,7 +124,7 @@ export default function ScreenShare({
             </div>
 
             {/* Audio Status */}
-            {stream?.getAudioTracks().length > 0 && (
+            {stream && stream.getAudioTracks().length > 0 && (
               <div className="absolute bottom-2 right-2">
                 <div className={`p-2 rounded-full ${audioEnabled ? 'bg-green-600' : 'bg-red-600'}`}>
                   {audioEnabled ? (
@@ -171,7 +174,7 @@ export default function ScreenShare({
           {isSharing ? 'Stop Sharing' : 'Share Screen'}
         </button>
 
-        {isSharing && stream?.getAudioTracks().length > 0 && (
+        {isSharing && stream && stream.getAudioTracks().length > 0 && (
           <button
             onClick={toggleAudio}
             className={`p-2 rounded-lg transition-colors ${
