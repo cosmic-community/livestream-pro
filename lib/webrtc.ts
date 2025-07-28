@@ -197,17 +197,43 @@ class WebRTCManager {
     return await navigator.mediaDevices.getUserMedia(constraints || defaultConstraints)
   }
 
-  async getScreenStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
-    const defaultConstraints: MediaStreamConstraints = {
+  async getScreenStream(constraints?: DisplayMediaStreamConstraints): Promise<MediaStream> {
+    // Check if screen sharing is supported
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error('Screen sharing is not supported in this browser')
+    }
+
+    const defaultConstraints: DisplayMediaStreamConstraints = {
       video: {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
         frameRate: { ideal: 30 }
       },
-      audio: true
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 44100
+      }
     }
 
-    return await navigator.mediaDevices.getDisplayMedia(constraints || defaultConstraints)
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia(constraints || defaultConstraints)
+      
+      // Add event listener for when user stops sharing via browser UI
+      const videoTrack = stream.getVideoTracks()[0]
+      if (videoTrack) {
+        videoTrack.addEventListener('ended', () => {
+          console.log('Screen sharing ended via browser UI')
+          // Clean up the stream
+          stream.getTracks().forEach(track => track.stop())
+        })
+      }
+      
+      return stream
+    } catch (error) {
+      console.error('Failed to get screen stream:', error)
+      throw error
+    }
   }
 
   async getAudioDevices(): Promise<MediaDeviceInfo[]> {
@@ -218,6 +244,26 @@ class WebRTCManager {
   async getVideoDevices(): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices.filter(device => device.kind === 'videoinput')
+  }
+
+  // Screen sharing specific utilities
+  isScreenShareSupported(): boolean {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)
+  }
+
+  async checkScreenSharePermission(): Promise<boolean> {
+    if (!this.isScreenShareSupported()) {
+      return false
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (error) {
+      console.error('Screen share permission check failed:', error)
+      return false
+    }
   }
 }
 
@@ -253,6 +299,13 @@ export const mediaUtils = {
       window.RTCPeerConnection &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia
+    )
+  },
+
+  isScreenShareSupported(): boolean {
+    return !!(
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getDisplayMedia
     )
   },
 

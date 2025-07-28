@@ -89,20 +89,48 @@ export class StreamManager {
 
       // Get screen stream if requested
       if (config.screen) {
+        // Check if screen sharing is supported
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error('Screen sharing is not supported in this browser');
+        }
+
         this.screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
             frameRate: { ideal: 30 }
           },
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100
+          }
         });
+
+        // Handle when user stops sharing via browser UI
+        const videoTrack = this.screenStream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.addEventListener('ended', () => {
+            console.log('Screen sharing ended by user');
+            this.screenStream = null;
+            // If we were using screen stream as primary, fall back to webcam
+            if (!this.localStream && config.video) {
+              // Try to get webcam stream as fallback
+              navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: config.audio
+              }).then(stream => {
+                this.localStream = stream;
+              }).catch(console.error);
+            }
+          });
+        }
 
         // Combine streams if both webcam and screen
         if (this.localStream && config.video) {
           const combinedStream = new MediaStream();
           
-          // Add null checks for MediaStreamTrack
+          // Add screen video track as primary
           const screenVideoTracks = this.screenStream.getVideoTracks();
           if (screenVideoTracks.length > 0) {
             const videoTrack = screenVideoTracks[0];
@@ -111,12 +139,21 @@ export class StreamManager {
             }
           }
           
-          // Add audio from webcam or screen
-          const audioTracks = this.localStream.getAudioTracks();
-          if (audioTracks.length > 0) {
-            const audioTrack = audioTracks[0];
+          // Add audio from webcam or screen (prefer screen audio if available)
+          const screenAudioTracks = this.screenStream.getAudioTracks();
+          if (screenAudioTracks.length > 0) {
+            const audioTrack = screenAudioTracks[0];
             if (audioTrack) {
               combinedStream.addTrack(audioTrack);
+            }
+          } else {
+            // Fallback to webcam audio
+            const webcamAudioTracks = this.localStream.getAudioTracks();
+            if (webcamAudioTracks.length > 0) {
+              const audioTrack = webcamAudioTracks[0];
+              if (audioTrack) {
+                combinedStream.addTrack(audioTrack);
+              }
             }
           }
           
@@ -133,23 +170,32 @@ export class StreamManager {
       this.streamStats.isLive = true;
       this.streamStats.quality = config.quality;
       
+      console.log('Stream started successfully with tracks:', 
+        this.localStream.getTracks().map(track => `${track.kind}: ${track.label}`));
+      
       // Return peer ID for viewers to connect
       return this.peer?.id || 'no-peer-id';
     } catch (error) {
       console.error('Failed to start stream:', error);
-      throw new Error('Failed to start stream');
+      throw new Error(`Failed to start stream: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   stopStream(): void {
     // Stop all tracks
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('Stopped track:', track.kind, track.label);
+      });
       this.localStream = null;
     }
 
     if (this.screenStream) {
-      this.screenStream.getTracks().forEach(track => track.stop());
+      this.screenStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('Stopped screen track:', track.kind, track.label);
+      });
       this.screenStream = null;
     }
 
@@ -159,10 +205,16 @@ export class StreamManager {
 
     this.streamStats.isLive = false;
     this.streamStats.viewerCount = 0;
+    
+    console.log('Stream stopped successfully');
   }
 
   getLocalStream(): MediaStream | null {
     return this.localStream;
+  }
+
+  getScreenStream(): MediaStream | null {
+    return this.screenStream;
   }
 
   getStreamStats(): StreamStats {
@@ -183,6 +235,8 @@ export class StreamManager {
       const call = this.peer.call(streamerId, new MediaStream());
       
       call.on('stream', (remoteStream: MediaStream) => {
+        console.log('Received remote stream with tracks:', 
+          remoteStream.getTracks().map(track => `${track.kind}: ${track.label}`));
         resolve(remoteStream);
       });
 
@@ -196,6 +250,11 @@ export class StreamManager {
         reject(new Error('Connection timeout'));
       }, 10000);
     });
+  }
+
+  // Check if screen sharing is supported
+  isScreenShareSupported(): boolean {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
   }
 }
 
@@ -238,3 +297,33 @@ export function detectDeviceType(): string {
   
   return 'desktop';
 }
+
+// Screen sharing utilities
+export const screenShareUtils = {
+  isSupported(): boolean {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  },
+
+  async checkPermission(): Promise<boolean> {
+    if (!this.isSupported()) {
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (error) {
+      console.error('Screen share permission check failed:', error);
+      return false;
+    }
+  },
+
+  getSupportedConstraints(): MediaTrackSupportedConstraints | null {
+    if (!this.isSupported()) {
+      return null;
+    }
+
+    return navigator.mediaDevices.getSupportedConstraints();
+  }
+};

@@ -34,13 +34,22 @@ export default function ScreenShare({
       }
 
       try {
-        const constraints: MediaStreamConstraints = {
+        // Check if getDisplayMedia is supported
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error('Screen sharing is not supported in this browser')
+        }
+
+        const constraints: DisplayMediaStreamConstraints = {
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
             frameRate: { ideal: 30 }
           },
-          audio: audioEnabled
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100
+          }
         }
 
         const screenStream = await navigator.mediaDevices.getDisplayMedia(constraints)
@@ -49,6 +58,7 @@ export default function ScreenShare({
         const videoTrack = screenStream.getVideoTracks()[0]
         if (videoTrack) {
           videoTrack.addEventListener('ended', () => {
+            console.log('Screen sharing ended by user')
             setIsSharing(false)
             setStream(null)
             onStreamChange(null)
@@ -56,45 +66,64 @@ export default function ScreenShare({
           })
         }
         
+        // Set video element source
         if (videoRef.current) {
           videoRef.current.srcObject = screenStream
+          // Ensure video plays
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(console.error)
+          }
         }
         
         setStream(screenStream)
         onStreamChange(screenStream)
         setIsSharing(true)
         setError(null)
+        
+        console.log('Screen sharing started successfully')
       } catch (err) {
         console.error('Failed to start screen share:', err)
         const error = err as Error
-        if (error && error.name === 'NotAllowedError') {
-          setError('Screen sharing permission denied')
-        } else {
-          setError('Failed to start screen sharing')
+        
+        let errorMessage = 'Failed to start screen sharing'
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Screen sharing permission denied'
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = 'Screen sharing is not supported in this browser'
+        } else if (error.name === 'AbortError') {
+          errorMessage = 'Screen sharing was cancelled'
+        } else if (error.message) {
+          errorMessage = error.message
         }
-        onStreamChange(null)
+        
+        setError(errorMessage)
         setIsSharing(false)
+        onStreamChange(null)
       }
     }
 
     startScreenShare()
-  }, [isEnabled, audioEnabled, onStreamChange, onToggle])
+  }, [isEnabled, onStreamChange, onToggle])
 
   const toggleAudio = () => {
     if (stream) {
       const audioTracks = stream.getAudioTracks()
       if (audioTracks.length > 0) {
+        const newAudioEnabled = !audioEnabled
         audioTracks.forEach(track => {
-          track.enabled = !audioEnabled
+          track.enabled = newAudioEnabled
         })
-        setAudioEnabled(!audioEnabled)
+        setAudioEnabled(newAudioEnabled)
       }
     }
   }
 
   const stopSharing = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach(track => {
+        track.stop()
+        console.log('Stopped track:', track.kind)
+      })
       setStream(null)
       onStreamChange(null)
       setIsSharing(false)
