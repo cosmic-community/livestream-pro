@@ -59,6 +59,9 @@ export interface CreateStreamSessionData {
     status: 'scheduled' | 'live' | 'ended' | 'error'
     stream_type: string
     tags: string[]
+    started_at?: string
+    quality?: string
+    platform?: string
   }
 }
 
