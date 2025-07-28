@@ -14,7 +14,7 @@ export default async function HomePage() {
   const streamTitle = settings?.metadata.stream_title || 'Live Stream'
   const streamDescription = settings?.metadata.stream_description || 'Welcome to my live stream!'
 
-  // FIXED: Provide proper StreamControlsProps with default values
+  // Provide proper StreamControlsProps with default values
   const defaultStreamConfig: StreamConfig = {
     video: true,
     audio: true,
@@ -55,19 +55,15 @@ export default async function HomePage() {
                 <p className="text-muted-foreground">{streamDescription}</p>
               </div>
 
-              {/* Video Player - FIXED: Added missing onViewerCountChange prop */}
+              {/* Video Player - FIXED: Removed onViewerCountChange prop */}
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 <StreamPlayer 
                   streamId={activeSession?.id}
                   isStreamer={false}
-                  onViewerCountChange={(count: number) => {
-                    // Handle viewer count changes
-                    console.log('Viewer count changed:', count)
-                  }}
                 />
               </div>
 
-              {/* Stream Controls (only visible to streamer) - FIXED: Added proper props */}
+              {/* Stream Controls (only visible to streamer) */}
               <StreamControls 
                 isStreaming={false}
                 streamConfig={defaultStreamConfig}

@@ -7,13 +7,13 @@ import { streamManager } from '@/lib/streaming'
 
 export default function StreamPlayer({ 
   streamId, 
-  isStreamer, 
-  onViewerCountChange 
+  isStreamer
 }: StreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewerCount, setViewerCount] = useState(0)
 
   useEffect(() => {
     if (isStreamer) {
@@ -66,7 +66,8 @@ export default function StreamPlayer({
       if (remoteStream && videoRef.current) {
         videoRef.current.srcObject = remoteStream
         setIsConnected(true)
-        onViewerCountChange(1) // Notify of new viewer
+        // Handle viewer count updates internally
+        setViewerCount(prev => prev + 1)
       } else {
         setError('Failed to connect to stream')
       }
