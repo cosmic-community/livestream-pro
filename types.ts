@@ -12,6 +12,14 @@ export interface CosmicObject {
   metadata: Record<string, any>
 }
 
+export interface CosmicResponse<T = any> {
+  objects?: T[]
+  object?: T
+  total?: number
+  success?: boolean
+  error?: string
+}
+
 // Stream Types
 export interface StreamSession extends CosmicObject {
   metadata: {
@@ -24,6 +32,8 @@ export interface StreamSession extends CosmicObject {
     duration: number
     started_at?: string
     ended_at?: string
+    start_time?: string
+    end_time?: string
     title: string
     description?: string
     thumbnail?: {
@@ -35,6 +45,31 @@ export interface StreamSession extends CosmicObject {
   }
 }
 
+export interface CreateStreamSessionData {
+  type: 'stream-sessions'
+  title: string
+  slug: string
+  metadata: {
+    start_time: string
+    viewer_count: number
+    peak_viewers: number
+    status: 'scheduled' | 'live' | 'ended' | 'error'
+    stream_type: string
+    tags: string[]
+  }
+}
+
+export interface StreamSessionUpdate {
+  end_time?: string
+  duration?: number
+  status?: 'scheduled' | 'live' | 'ended' | 'error'
+  viewer_count?: number
+  peak_viewers?: number
+  start_time?: string
+  started_at?: string
+  ended_at?: string
+}
+
 export interface StreamConfig {
   video: boolean
   audio: boolean
@@ -42,11 +77,35 @@ export interface StreamConfig {
   quality: 'auto' | 'low' | 'medium' | 'high'
 }
 
+export interface StreamStats {
+  isLive: boolean
+  viewerCount: number
+  duration: number
+  bitrate: number
+  quality: 'auto' | 'low' | 'medium' | 'high'
+}
+
+export interface PeerConfig {
+  host: string
+  port: number
+  path: string
+  secure: boolean
+}
+
 // Component Props Types
 export interface StreamPlayerProps {
   streamId?: string
   isStreamer: boolean
   className?: string
+  onViewerCountChange?: (count: number) => void
+}
+
+export interface StreamControlsProps {
+  isStreaming: boolean
+  streamConfig: StreamConfig
+  onStartStream: () => Promise<void>
+  onStopStream: () => Promise<void>
+  onConfigChange: (config: StreamConfig) => void
 }
 
 export interface StreamStatusProps {
@@ -64,7 +123,7 @@ export interface StreamHistoryProps {
 }
 
 export interface StreamAnalyticsProps {
-  sessionId: string
+  sessionId?: string
   timeRange?: '24h' | '7d' | '30d'
 }
 
@@ -111,21 +170,43 @@ export interface SiteSettings extends CosmicObject {
 }
 
 // Analytics Types
-export interface StreamAnalytics {
-  session_id: string
-  timestamp: string
-  viewer_count: number
-  duration: number
-  platform: string
-  quality_metrics?: {
-    bitrate: number
-    fps: number
-    dropped_frames: number
+export interface ViewerAnalytics extends CosmicObject {
+  metadata: {
+    session_id: string
+    timestamp: string
+    viewer_count: number
+    duration: number
+    platform: string
+    quality_metrics?: {
+      bitrate: number
+      fps: number
+      dropped_frames: number
+    }
+    engagement_metrics?: {
+      chat_messages: number
+      reactions: number
+      shares: number
+    }
   }
-  engagement_metrics?: {
-    chat_messages: number
-    reactions: number
-    shares: number
+}
+
+export interface StreamAnalytics extends CosmicObject {
+  metadata: {
+    session_id: string
+    timestamp: string
+    viewer_count: number
+    duration: number
+    platform: string
+    quality_metrics?: {
+      bitrate: number
+      fps: number
+      dropped_frames: number
+    }
+    engagement_metrics?: {
+      chat_messages: number
+      reactions: number
+      shares: number
+    }
   }
 }
 

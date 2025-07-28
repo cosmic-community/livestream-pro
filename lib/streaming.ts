@@ -102,7 +102,7 @@ export class StreamManager {
         if (this.localStream && config.video) {
           const combinedStream = new MediaStream();
           
-          // FIXED: Add null checks for MediaStreamTrack
+          // Add null checks for MediaStreamTrack
           const screenVideoTracks = this.screenStream.getVideoTracks();
           if (screenVideoTracks.length > 0) {
             const videoTrack = screenVideoTracks[0];

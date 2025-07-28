@@ -44,7 +44,7 @@ export async function getActiveStreamSession(): Promise<StreamSession | null> {
         type: 'stream-sessions',
         'metadata.status': 'live'
       })
-      .props(['id', 'title', 'slug', 'metadata'])
+      .props(['id', 'title', 'slug', 'metadata', 'created_at'])
       .limit(1)
       .depth(1);
     
@@ -119,10 +119,7 @@ export async function updatePlatformSettings(settings: Partial<PlatformSettings[
         title: 'Platform Settings',
         metadata: {
           stream_title: 'Live Stream',
-          default_quality: 'auto',
-          enable_chat: true,
-          enable_analytics: true,
-          auto_record: false,
+          stream_description: 'Default stream description',
           ...settings
         }
       });
@@ -135,12 +132,12 @@ export async function updatePlatformSettings(settings: Partial<PlatformSettings[
 }
 
 // Viewer analytics functions
-export async function createViewerAnalytics(analyticsData: Omit<ViewerAnalytics, 'id' | 'created_at' | 'modified_at'>): Promise<ViewerAnalytics> {
+export async function createViewerAnalytics(analyticsData: Omit<ViewerAnalytics['metadata'], 'id' | 'created_at' | 'modified_at'>): Promise<ViewerAnalytics> {
   try {
     const response = await cosmic.objects.insertOne({
       type: 'viewer-analytics',
       title: `Viewer ${Date.now()}`,
-      metadata: analyticsData.metadata
+      metadata: analyticsData
     });
     
     return response.object as ViewerAnalytics;
