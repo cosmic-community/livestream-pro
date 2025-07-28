@@ -49,11 +49,10 @@ class WebRTCManager {
 
     // Add local stream tracks if available
     if (this.localStream) {
+      // Store reference to avoid closure issues with TypeScript
+      const localStreamRef = this.localStream
       this.localStream.getTracks().forEach(track => {
-        // Fixed: Add null check before using localStream in addTrack
-        if (this.localStream) {
-          peer.addTrack(track, this.localStream)
-        }
+        peer.addTrack(track, localStreamRef)
       })
     }
 
