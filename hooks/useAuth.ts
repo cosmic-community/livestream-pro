@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Refresh user error:', error)
       await logout()
     }
-  }
+  };
 
   const value: AuthContextType = {
     user,
