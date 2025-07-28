@@ -1,25 +1,27 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import CosmicBadge from '@/components/CosmicBadge'
-import { AuthProvider } from '@/hooks/useAuth'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LiveStream Pro - Personal Live Streaming Platform',
-  description: 'Stream your webcam and screen to viewers with authentication. Built with Next.js and Cosmic CMS.',
-  keywords: 'live streaming, webcam, screen share, broadcast, real-time, authentication',
+  title: 'LiveStream Pro - Personal Broadcasting Platform',
+  description: 'High-quality webcam and screen sharing live streaming platform with real-time viewer engagement.',
+  keywords: ['live streaming', 'webcam', 'screen share', 'broadcasting', 'video streaming'],
   authors: [{ name: 'LiveStream Pro' }],
   openGraph: {
-    title: 'LiveStream Pro - Personal Live Streaming Platform',
-    description: 'Stream your webcam and screen to viewers with authentication.',
+    title: 'LiveStream Pro - Personal Broadcasting Platform',
+    description: 'High-quality webcam and screen sharing live streaming platform with real-time viewer engagement.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LiveStream Pro',
-    description: 'Personal live streaming platform with webcam and screen sharing.',
+    title: 'LiveStream Pro - Personal Broadcasting Platform',
+    description: 'High-quality webcam and screen sharing live streaming platform with real-time viewer engagement.',
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 }
 
@@ -28,17 +30,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const bucketSlug = process.env.COSMIC_BUCKET_SLUG as string
-
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <main className="min-h-screen bg-background">
-            {children}
-          </main>
-        </AuthProvider>
-        <CosmicBadge bucketSlug={bucketSlug} />
+        {children}
       </body>
     </html>
   )

@@ -2,101 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
+:root {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --border: 217.2 32.6% 17.5%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 84% 4.9%;
+}
+
+@media (prefers-color-scheme: light) {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 1.2%;
-    --secondary: 222.2 84% 4.9%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 263 70% 50%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+* {
+  border-color: hsl(var(--border));
 }
 
-@layer components {
-  .video-container {
-    @apply relative w-full h-full bg-black rounded-lg overflow-hidden;
-  }
-  
-  .video-element {
-    @apply w-full h-full object-cover;
-  }
-  
-  .stream-overlay {
-    @apply absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent;
-  }
-  
-  .control-button {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50;
-  }
-  
-  .control-button-primary {
-    @apply bg-primary text-primary-foreground shadow hover:bg-primary/90;
-  }
-  
-  .control-button-secondary {
-    @apply bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80;
-  }
-  
-  .control-button-destructive {
-    @apply bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90;
-  }
-  
-  .status-indicator {
-    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium;
-  }
-  
-  .status-live {
-    @apply bg-red-500/20 text-red-400 border border-red-500/30;
-  }
-  
-  .status-offline {
-    @apply bg-muted text-muted-foreground border border-border;
-  }
-  
-  .viewer-count {
-    @apply inline-flex items-center gap-1 px-2 py-1 rounded-md bg-black/50 text-white text-sm font-medium;
-  }
+body {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Custom component styles */
+.status-indicator {
+  @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border;
+}
+
+.status-live {
+  @apply bg-red-500/20 text-red-400 border-red-500/30;
+}
+
+.viewer-count {
+  @apply inline-flex items-center gap-2 px-3 py-1 bg-black/70 rounded-full text-white text-sm font-medium;
+}
+
+/* Line clamping utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: hsl(var(--muted));
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground));
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--accent-foreground));
+  background: hsl(var(--foreground));
 }
 
-/* Animation for live indicator */
+/* Animations */
 @keyframes pulse-red {
   0%, 100% {
     opacity: 1;
@@ -108,4 +101,26 @@
 
 .animate-pulse-red {
   animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Focus styles */
+.focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-background;
+}
+
+/* Button variants */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 hover:bg-gray-700 text-white;
+}
+
+.btn-destructive {
+  @apply bg-red-600 hover:bg-red-700 text-white;
+}
+
+.btn-outline {
+  @apply border border-border hover:bg-muted text-foreground;
 }
