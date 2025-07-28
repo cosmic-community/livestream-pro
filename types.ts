@@ -42,8 +42,9 @@ export interface StreamSession extends CosmicObject {
     }
     tags?: string[]
     category?: string
-    stream_type?: string // Added missing property
-    quality?: string // Added missing property
+    stream_type?: string
+    quality?: string
+    peer_id?: string // Added missing peer_id property
   }
 }
 
@@ -108,7 +109,7 @@ export interface StreamPlayerProps {
   isStreamer: boolean
   className?: string
   onViewerCountChange?: (count: number) => void
-  activeSession?: StreamSession | null // Added missing property
+  activeSession?: StreamSession | null
 }
 
 export interface StreamControlsProps {
@@ -130,7 +131,7 @@ export interface ViewerCountProps {
 }
 
 export interface StreamHistoryProps {
-  limit?: number // Added missing property
+  limit?: number
 }
 
 export interface StreamAnalyticsProps {
