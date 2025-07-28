@@ -65,7 +65,9 @@ class WebRTCManager {
 
     // Handle remote stream
     peer.ontrack = (event) => {
-      this.handleRemoteStream(peerId, event.streams[0])
+      if (event.streams && event.streams[0]) {
+        this.handleRemoteStream(peerId, event.streams[0])
+      }
     }
 
     // Handle connection state changes
