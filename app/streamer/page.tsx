@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import StreamPlayer from '@/components/StreamPlayer'
 import StreamControls from '@/components/StreamControls'
 import ViewerCount from '@/components/ViewerCount'
 import StreamStatus from '@/components/StreamStatus'
 import StreamAnalytics from '@/components/StreamAnalytics'
-import { StreamConfig, StreamStats } from '@/types'
+import { StreamConfig, StreamStats, StreamSession } from '@/types'
 import { streamManager } from '@/lib/streaming'
 
 export default function StreamerPage() {
+  const streamPlayerRef = useRef<any>(null)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [currentSession, setCurrentSession] = useState<StreamSession | null>(null)
   const [streamStats, setStreamStats] = useState<StreamStats>({
     isLive: false,
     viewerCount: 0,
@@ -39,11 +41,10 @@ export default function StreamerPage() {
 
   const handleStartStream = async () => {
     try {
-      await streamManager.startStream(streamConfig)
       setIsStreaming(true)
       
       // Create stream session in Cosmic
-      await fetch('/api/stream/start', {
+      const response = await fetch('/api/stream/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,26 +54,51 @@ export default function StreamerPage() {
           quality: streamConfig.quality,
         }),
       })
+
+      const data = await response.json()
+      if (data.success && data.session) {
+        setCurrentSession(data.session)
+        
+        // Set session ID in stream manager for consistent peer identification
+        streamManager.setSessionId(data.session.id)
+        
+        console.log('Stream session created:', data.session)
+      }
+
+      // Start the actual stream using the StreamPlayer
+      if (streamPlayerRef.current) {
+        await streamPlayerRef.current.startStream(streamConfig)
+      }
     } catch (error) {
       console.error('Failed to start stream:', error)
+      setIsStreaming(false)
       alert('Failed to start stream. Please check your camera and microphone permissions.')
     }
   }
 
   const handleStopStream = async () => {
     try {
-      streamManager.stopStream()
+      // Stop the actual stream
+      if (streamPlayerRef.current) {
+        streamPlayerRef.current.stopStream()
+      }
+      
       setIsStreaming(false)
       
       // End stream session in Cosmic
-      await fetch('/api/stream/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viewerCount: streamStats.viewerCount,
-          duration: streamStats.duration,
-        }),
-      })
+      if (currentSession) {
+        await fetch('/api/stream/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: currentSession.id,
+            viewerCount: streamStats.viewerCount,
+            duration: streamStats.duration,
+          }),
+        })
+        
+        setCurrentSession(null)
+      }
     } catch (error) {
       console.error('Failed to stop stream:', error)
     }
@@ -87,6 +113,14 @@ export default function StreamerPage() {
       ...prev,
       viewerCount: count,
     }))
+  }
+
+  // Get public stream URL
+  const getPublicStreamUrl = () => {
+    if (currentSession) {
+      return `${window.location.origin}/watch/${currentSession.id}`
+    }
+    return null
   }
 
   return (
@@ -126,7 +160,10 @@ export default function StreamerPage() {
               {/* Video Preview */}
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 <StreamPlayer 
+                  ref={streamPlayerRef}
+                  streamId={currentSession?.id}
                   isStreamer={true}
+                  activeSession={currentSession}
                   onViewerCountChange={handleViewerCountChange}
                 />
               </div>
@@ -138,6 +175,7 @@ export default function StreamerPage() {
                 onStartStream={handleStartStream}
                 onStopStream={handleStopStream}
                 onConfigChange={handleConfigChange}
+                streamPlayerRef={streamPlayerRef}
               />
             </div>
           </div>
@@ -164,24 +202,69 @@ export default function StreamerPage() {
                     <span className="font-medium text-foreground capitalize">{streamStats.quality}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bitrate</span>
+                    <span className="text-muted-foreground">Duration</span>
                     <span className="font-medium text-foreground">
-                      {Math.round(streamStats.bitrate / 1000)}k
+                      {Math.floor(streamStats.duration / 60)}:{(streamStats.duration % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Stream Session Info */}
+              {currentSession && (
+                <div className="bg-muted/30 rounded-lg p-6">
+                  <h3 className="font-semibold text-foreground mb-4">Current Session</h3>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Session ID:</span>
+                      <span className="font-mono text-foreground ml-2 text-xs">
+                        {currentSession.id.slice(-8)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Started:</span>
+                      <span className="text-foreground ml-2">
+                        {new Date(currentSession.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {isStreaming && getPublicStreamUrl() && (
+                      <div className="mt-3">
+                        <span className="text-muted-foreground block mb-1">Public URL:</span>
+                        <a
+                          href={getPublicStreamUrl()!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 text-xs font-mono break-all underline"
+                        >
+                          {getPublicStreamUrl()}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Quick Actions */}
               <div className="bg-muted/30 rounded-lg p-6">
                 <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
                 <div className="space-y-3">
-                  <Link
-                    href="/"
-                    className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg font-medium transition-colors"
-                  >
-                    View Public Stream
-                  </Link>
+                  {isStreaming && getPublicStreamUrl() ? (
+                    <a
+                      href={getPublicStreamUrl()!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg font-medium transition-colors"
+                    >
+                      View Public Stream
+                    </a>
+                  ) : (
+                    <Link
+                      href="/"
+                      className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg font-medium transition-colors"
+                    >
+                      View All Streams
+                    </Link>
+                  )}
                   <button
                     onClick={() => window.location.reload()}
                     className="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-center rounded-lg font-medium transition-colors"

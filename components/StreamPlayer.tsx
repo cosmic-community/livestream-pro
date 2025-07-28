@@ -1,201 +1,111 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { StreamPlayerProps } from '@/types'
+import { streamManager } from '@/lib/streaming'
 
-// Define interface for stream control methods
-interface StreamControlMethods {
+export interface StreamPlayerMethods {
   startStream: (config: { video: boolean; audio: boolean; screen?: boolean }) => Promise<void>
   stopStream: () => void
   getLocalStream: () => MediaStream | null
   isStreamActive: () => boolean
 }
 
-export default function StreamPlayer({
+const StreamPlayer = forwardRef<StreamPlayerMethods, StreamPlayerProps>(({
   streamId,
   isStreamer = false,
   className = '',
   onViewerCountChange,
   activeSession
-}: StreamPlayerProps) {
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [streamActive, setStreamActive] = useState(false)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
-  const [peer, setPeer] = useState<any>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected')
 
+  // Initialize stream manager for streamers
   useEffect(() => {
     if (isStreamer) {
-      // For streamer: Initialize peer and prepare for broadcasting
-      initializeStreamerPeer()
-    } else if (activeSession && activeSession.metadata?.status === 'live') {
-      // For viewer: simulate stream connection
-      setIsLoading(true)
-      
-      // Simulate loading delay
-      setTimeout(() => {
-        setIsLoading(false)
-        setStreamActive(true)
-        setError(null)
-      }, 2000)
-    } else {
-      setStreamActive(false)
-      setError(null)
+      // Set session ID if available
+      if (activeSession?.id) {
+        streamManager.setSessionId(activeSession.id)
+      }
     }
   }, [isStreamer, activeSession])
 
-  const initializeStreamerPeer = async () => {
-    if (typeof window !== 'undefined') {
-      try {
-        const { Peer } = await import('peerjs')
-        const streamerId = `streamer-${streamId}`
-        
-        const newPeer = new Peer(streamerId, {
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-            ]
+  // For viewers: connect to remote stream
+  useEffect(() => {
+    if (!isStreamer && activeSession && activeSession.metadata?.status === 'live') {
+      connectToRemoteStream()
+    } else if (!isStreamer) {
+      setConnectionStatus('disconnected')
+      setStreamActive(false)
+      setRemoteStream(null)
+    }
+  }, [isStreamer, activeSession])
+
+  const connectToRemoteStream = async () => {
+    if (!activeSession?.id) return
+
+    setIsLoading(true)
+    setConnectionStatus('connecting')
+    setError(null)
+
+    try {
+      // Use session ID as streamer ID
+      const streamerId = `streamer-${activeSession.id}`
+      console.log('Connecting to streamer:', streamerId)
+
+      const stream = await streamManager.connectToStream(streamerId)
+      
+      if (stream && stream.getTracks().length > 0) {
+        setRemoteStream(stream)
+        setConnectionStatus('connected')
+        setStreamActive(true)
+        setError(null)
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          try {
+            await videoRef.current.play()
+            console.log('Remote stream playback started')
+          } catch (playError) {
+            console.error('Video play error:', playError)
+            setError('Failed to play remote stream')
+            setConnectionStatus('error')
           }
-        })
-
-        newPeer.on('open', (id: string) => {
-          console.log('Streamer peer connection opened:', id)
-        })
-
-        newPeer.on('call', (call: any) => {
-          console.log('Incoming call from viewer:', call.peer)
-          // Answer with current stream
-          if (localStream) {
-            call.answer(localStream)
-            console.log('Answered call with stream containing tracks:', 
-              localStream.getTracks().map(track => `${track.kind}: ${track.label || 'unlabeled'}`))
-          } else {
-            console.warn('No local stream available to answer call')
-            // Answer with empty stream to maintain connection
-            call.answer(new MediaStream())
-          }
-        })
-
-        newPeer.on('error', (err: any) => {
-          console.error('Streamer peer error:', err)
-          setError('Peer connection error')
-        })
-
-        setPeer(newPeer)
-
-      } catch (error) {
-        console.error('Failed to initialize streamer peer:', error)
-        setError('Failed to initialize streaming')
+        }
+      } else {
+        throw new Error('No valid stream received from streamer')
       }
+    } catch (error) {
+      console.error('Failed to connect to remote stream:', error)
+      setError(error instanceof Error ? error.message : 'Failed to connect to stream')
+      setConnectionStatus('error')
+      setStreamActive(false)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const startLocalStream = async (config: { video: boolean; audio: boolean; screen?: boolean }) => {
+    if (!isStreamer) return
+
     try {
       setIsLoading(true)
       setError(null)
 
-      let stream: MediaStream | null = null
+      // Use session ID for consistent streamer identification
+      const sessionStreamerId = activeSession?.id ? `streamer-${activeSession.id}` : undefined
+      
+      const streamId = await streamManager.startStream(config)
+      console.log('Local stream started with ID:', streamId)
 
-      if (config.screen) {
-        // Get screen share stream
-        if (navigator.mediaDevices?.getDisplayMedia) {
-          const screenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              frameRate: { ideal: 30 }
-            },
-            audio: true
-          })
-
-          // If also capturing webcam, combine streams
-          if (config.video || config.audio) {
-            try {
-              const webcamStream = await navigator.mediaDevices.getUserMedia({
-                video: config.video ? {
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                  frameRate: { ideal: 30 }
-                } : false,
-                audio: config.audio ? {
-                  echoCancellation: true,
-                  noiseSuppression: true
-                } : false
-              })
-
-              // Create combined stream
-              const combinedStream = new MediaStream()
-              
-              // Add screen video (primary)
-              screenStream.getVideoTracks().forEach(track => {
-                combinedStream.addTrack(track)
-              })
-              
-              // Add audio (prefer screen audio, fallback to webcam)
-              const screenAudioTracks = screenStream.getAudioTracks()
-              if (screenAudioTracks.length > 0) {
-                screenAudioTracks.forEach(track => {
-                  combinedStream.addTrack(track)
-                })
-              } else {
-                webcamStream.getAudioTracks().forEach(track => {
-                  combinedStream.addTrack(track)
-                })
-              }
-
-              stream = combinedStream
-
-              // Clean up individual streams
-              screenStream.getTracks().forEach(track => {
-                if (!combinedStream.getTracks().includes(track)) {
-                  track.stop()
-                }
-              })
-              webcamStream.getTracks().forEach(track => {
-                if (!combinedStream.getTracks().includes(track)) {
-                  track.stop()
-                }
-              })
-
-            } catch (webcamError) {
-              console.warn('Failed to get webcam stream, using screen only:', webcamError)
-              stream = screenStream
-            }
-          } else {
-            stream = screenStream
-          }
-
-          // Handle screen share end
-          const videoTrack = stream.getVideoTracks()[0]
-          if (videoTrack) {
-            videoTrack.addEventListener('ended', () => {
-              console.log('Screen sharing ended by user')
-              stopLocalStream()
-            })
-          }
-
-        } else {
-          throw new Error('Screen sharing is not supported in this browser')
-        }
-      } else {
-        // Get webcam/audio only
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: config.video ? {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 }
-          } : false,
-          audio: config.audio ? {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } : false
-        })
-      }
-
+      const stream = streamManager.getLocalStream()
+      
       if (stream) {
         setLocalStream(stream)
         
@@ -220,68 +130,90 @@ export default function StreamPlayer({
   }
 
   const stopLocalStream = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        track.stop()
-        console.log('Stopped track:', track.kind, track.label)
-      })
-      setLocalStream(null)
-    }
+    if (!isStreamer) return
 
+    streamManager.stopStream()
+    
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
 
+    setLocalStream(null)
     setStreamActive(false)
+    console.log('Local stream stopped')
   }
 
-  // Update viewer count periodically for streamers
-  useEffect(() => {
-    if (isStreamer && onViewerCountChange) {
-      const interval = setInterval(() => {
-        // Simulate viewer count updates
-        const viewerCount = Math.floor(Math.random() * 50) + 1
-        onViewerCountChange(viewerCount)
-      }, 5000)
-      
-      return () => clearInterval(interval)
-    }
-  }, [isStreamer, onViewerCountChange])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopLocalStream()
-      if (peer) {
-        peer.destroy()
-      }
-    }
-  }, [])
-
-  const handleVideoError = () => {
-    setError('Video playback error')
-    setStreamActive(false)
-  }
-
-  // Fix: Expose streaming control methods properly
-  const streamControlMethods: StreamControlMethods = {
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
     startStream: startLocalStream,
     stopStream: stopLocalStream,
     getLocalStream: () => localStream,
     isStreamActive: () => streamActive
+  }))
+
+  // Update viewer count periodically for streamers
+  useEffect(() => {
+    if (isStreamer && onViewerCountChange && streamActive) {
+      const interval = setInterval(() => {
+        const stats = streamManager.getStreamStats()
+        onViewerCountChange(stats.viewerCount)
+      }, 2000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [isStreamer, onViewerCountChange, streamActive])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (isStreamer) {
+        stopLocalStream()
+      }
+    }
+  }, [isStreamer])
+
+  const handleVideoError = () => {
+    setError('Video playback error')
+    setStreamActive(false)
+    setConnectionStatus('error')
   }
 
-  // Fix: Expose methods via imperative handle or ref
-  useEffect(() => {
-    const container = videoRef.current?.closest('[data-stream-player]') as any
-    if (container && isStreamer) {
-      // Attach methods to container for parent access
-      container.streamMethods = streamControlMethods
+  const retryConnection = () => {
+    if (!isStreamer && activeSession?.metadata?.status === 'live') {
+      setError(null)
+      setConnectionStatus('disconnected')
+      connectToRemoteStream()
     }
-  }, [isStreamer, streamActive, localStream])
+  }
+
+  const getStatusText = () => {
+    if (isStreamer) {
+      return streamActive ? 'Live Preview' : 'Preview'
+    } else {
+      switch (connectionStatus) {
+        case 'connected': return 'Live Stream'
+        case 'connecting': return 'Connecting...'
+        case 'error': return 'Connection Error'
+        default: return 'Stream Offline'
+      }
+    }
+  }
+
+  const getStatusColor = () => {
+    if (isStreamer) {
+      return streamActive ? 'text-red-400' : 'text-gray-400'
+    } else {
+      switch (connectionStatus) {
+        case 'connected': return 'text-red-400'
+        case 'connecting': return 'text-yellow-400'
+        case 'error': return 'text-red-400'
+        default: return 'text-gray-400'
+      }
+    }
+  }
 
   return (
-    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`} data-stream-player>
+    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
       {/* Loading State */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
@@ -302,7 +234,15 @@ export default function StreamPlayer({
             <p className="text-white text-lg mb-2">
               {isStreamer ? 'Stream Error' : 'Connection Error'}
             </p>
-            <p className="text-gray-400 text-sm">{error}</p>
+            <p className="text-gray-400 text-sm mb-4">{error}</p>
+            {!isStreamer && (
+              <button
+                onClick={retryConnection}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+              >
+                Retry Connection
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -312,13 +252,13 @@ export default function StreamPlayer({
         <div className="absolute inset-0 flex items-center justify-center bg-black">
           <div className="text-center p-6">
             <div className="text-gray-400 text-6xl mb-4">📹</div>
-            <p className="text-white text-lg mb-2">
-              {isStreamer ? 'Stream Preview' : 'Stream Offline'}
-            </p>
+            <p className="text-white text-lg mb-2">{getStatusText()}</p>
             <p className="text-gray-400 text-sm">
               {isStreamer 
                 ? 'Configure your stream settings and click "Start Stream"' 
-                : 'The streamer is currently offline'
+                : activeSession?.metadata?.status === 'live' 
+                  ? 'Attempting to connect to stream...'
+                  : 'The streamer is currently offline'
               }
             </p>
           </div>
@@ -331,7 +271,7 @@ export default function StreamPlayer({
         autoPlay
         playsInline
         muted={isStreamer} // Mute local preview to avoid feedback
-        controls={!isStreamer} // Show controls for viewers
+        controls={!isStreamer && streamActive} // Show controls for viewers
         onError={handleVideoError}
         className="w-full h-full object-cover"
         style={{ display: streamActive ? 'block' : 'none' }}
@@ -342,14 +282,14 @@ export default function StreamPlayer({
         <div className="absolute top-4 left-4 z-20">
           <div className="flex items-center gap-2 px-3 py-1 bg-black/70 rounded-full">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-white text-xs font-medium">
-              {isStreamer ? 'LIVE PREVIEW' : 'LIVE'}
+            <span className={`text-xs font-medium ${getStatusColor()}`}>
+              {getStatusText().toUpperCase()}
             </span>
           </div>
         </div>
       )}
 
-      {/* Stream Info Overlay */}
+      {/* Stream Info Overlay for Streamers */}
       {isStreamer && streamActive && localStream && (
         <div className="absolute bottom-4 left-4 z-20">
           <div className="flex items-center gap-2 px-3 py-1 bg-black/70 rounded-full">
@@ -359,6 +299,19 @@ export default function StreamPlayer({
           </div>
         </div>
       )}
+
+      {/* Connection Status for Viewers */}
+      {!isStreamer && (
+        <div className="absolute bottom-4 right-4 z-20">
+          <div className={`px-3 py-1 bg-black/70 rounded-full ${getStatusColor()}`}>
+            <span className="text-xs font-medium">{connectionStatus.toUpperCase()}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
-}
+})
+
+StreamPlayer.displayName = 'StreamPlayer'
+
+export default StreamPlayer
