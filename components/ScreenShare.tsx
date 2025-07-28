@@ -39,7 +39,7 @@ export default function ScreenShare({
           throw new Error('Screen sharing is not supported in this browser')
         }
 
-        const constraints: DisplayMediaStreamConstraints = {
+        const constraints: MediaStreamConstraints = {
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },

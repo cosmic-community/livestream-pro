@@ -197,13 +197,13 @@ class WebRTCManager {
     return await navigator.mediaDevices.getUserMedia(constraints || defaultConstraints)
   }
 
-  async getScreenStream(constraints?: DisplayMediaStreamConstraints): Promise<MediaStream> {
+  async getScreenStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
     // Check if screen sharing is supported
     if (!navigator.mediaDevices?.getDisplayMedia) {
       throw new Error('Screen sharing is not supported in this browser')
     }
 
-    const defaultConstraints: DisplayMediaStreamConstraints = {
+    const defaultConstraints: MediaStreamConstraints = {
       video: {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
