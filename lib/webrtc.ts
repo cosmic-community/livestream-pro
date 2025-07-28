@@ -1,4 +1,4 @@
-import { StreamConfig, PeerConnection } from '@/types'
+import { StreamConfig } from '@/types'
 
 class WebRTCManager {
   private peers: Map<string, RTCPeerConnection> = new Map()
@@ -23,8 +23,7 @@ class WebRTCManager {
     this.localStream = stream || null
 
     // Update all peer connections with new stream
-    const peerEntries = Array.from(this.peers.entries())
-    for (const [peerId, peer] of peerEntries) {
+    for (const [peerId, peer] of Array.from(this.peers.entries())) {
       if (this.localStream) {
         // Remove old tracks
         const senders = peer.getSenders()
@@ -51,6 +50,7 @@ class WebRTCManager {
     // Add local stream tracks if available
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
+        // Add null check to ensure localStream is not null when passed to addTrack
         if (this.localStream) {
           peer.addTrack(track, this.localStream)
         }
@@ -139,8 +139,7 @@ class WebRTCManager {
   }
 
   closeAllConnections(): void {
-    const peerEntries = Array.from(this.peers.entries())
-    for (const [peerId, peer] of peerEntries) {
+    for (const [peerId, peer] of Array.from(this.peers.entries())) {
       peer.close()
     }
     this.peers.clear()
@@ -218,10 +217,6 @@ class WebRTCManager {
   async getVideoDevices(): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices.filter(device => device.kind === 'videoinput')
-  }
-
-  getLocalStream(): MediaStream | null {
-    return this.localStream
   }
 }
 
