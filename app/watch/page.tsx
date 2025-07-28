@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getStreamSessions, getSiteSettings } from '@/lib/cosmic'
 import StreamDirectory from '@/components/StreamDirectory'
 import MaintenanceMode from '@/components/MaintenanceMode'
+import RefreshButton from '@/components/RefreshButton'
 import { Eye, Clock, Calendar, ArrowRight } from 'lucide-react'
 
 export default async function WatchPage() {
@@ -226,17 +227,5 @@ export default async function WatchPage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-// Client component for refresh functionality
-function RefreshButton() {
-  return (
-    <button
-      onClick={() => window.location.reload()}
-      className="px-6 py-3 border border-border hover:bg-muted/50 text-foreground rounded-lg font-medium transition-colors"
-    >
-      Refresh
-    </button>
   )
 }
