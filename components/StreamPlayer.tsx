@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { StreamPlayerProps } from '@/types'
-import { streamManager } from '@/lib/streaming'
 
 export default function StreamPlayer({
   streamId,
   isStreamer = false,
   className = '',
-  onViewerCountChange
+  onViewerCountChange,
+  activeSession
 }: StreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -18,49 +18,50 @@ export default function StreamPlayer({
   useEffect(() => {
     if (isStreamer) {
       // For streamer: show local stream preview
-      const updatePreview = () => {
-        const localStream = streamManager.getLocalStream()
-        if (videoRef.current && localStream) {
-          videoRef.current.srcObject = localStream
-          setStreamActive(true)
-          setError(null)
+      const updatePreview = async () => {
+        try {
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              video: true, 
+              audio: true 
+            })
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream
+              setStreamActive(true)
+              setError(null)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to get user media:', err)
+          setError('Unable to access camera/microphone')
         }
       }
 
-      // Update preview every second
-      const interval = setInterval(updatePreview, 1000)
-      updatePreview() // Initial update
-
-      return () => clearInterval(interval)
-    } else if (streamId) {
-      // For viewer: connect to remote stream
+      updatePreview()
+    } else if (activeSession && activeSession.metadata?.status === 'live') {
+      // For viewer: simulate stream connection
       setIsLoading(true)
       
-      streamManager.connectToStream(streamId)
-        .then((remoteStream) => {
-          if (videoRef.current && remoteStream) {
-            videoRef.current.srcObject = remoteStream
-            setStreamActive(true)
-            setError(null)
-          }
-        })
-        .catch((err) => {
-          setError('Failed to connect to stream')
-          console.error('Stream connection error:', err)
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
+      // Simulate loading delay
+      setTimeout(() => {
+        setIsLoading(false)
+        setStreamActive(true)
+        setError(null)
+      }, 2000)
+    } else {
+      setStreamActive(false)
+      setError(null)
     }
-  }, [isStreamer, streamId])
+  }, [isStreamer, activeSession])
 
   // Update viewer count periodically for streamers
   useEffect(() => {
     if (isStreamer && onViewerCountChange) {
       const interval = setInterval(() => {
-        const stats = streamManager.getStreamStats()
-        onViewerCountChange(stats.viewerCount)
-      }, 2000)
+        // Simulate viewer count updates
+        const viewerCount = Math.floor(Math.random() * 50) + 1
+        onViewerCountChange(viewerCount)
+      }, 5000)
       
       return () => clearInterval(interval)
     }

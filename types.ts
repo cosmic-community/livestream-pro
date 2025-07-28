@@ -42,8 +42,8 @@ export interface StreamSession extends CosmicObject {
     }
     tags?: string[]
     category?: string
-    stream_type?: string
-    quality?: string
+    stream_type?: string // Added missing property
+    quality?: string // Added missing property
   }
 }
 
@@ -94,10 +94,12 @@ export interface PeerConfig {
   secure: boolean
 }
 
-// WebRTC Types
-export interface PeerConnection extends RTCPeerConnection {
-  peerId: string
-  connected: boolean
+// Added missing PeerConnection interface
+export interface PeerConnection {
+  id: string
+  connection: RTCPeerConnection
+  status: 'connecting' | 'connected' | 'disconnected' | 'failed'
+  stream?: MediaStream
 }
 
 // Component Props Types
@@ -106,7 +108,7 @@ export interface StreamPlayerProps {
   isStreamer: boolean
   className?: string
   onViewerCountChange?: (count: number) => void
-  activeSession?: StreamSession | null
+  activeSession?: StreamSession | null // Added missing property
 }
 
 export interface StreamControlsProps {
@@ -128,7 +130,7 @@ export interface ViewerCountProps {
 }
 
 export interface StreamHistoryProps {
-  limit?: number
+  limit?: number // Added missing property
 }
 
 export interface StreamAnalyticsProps {

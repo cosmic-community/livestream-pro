@@ -112,7 +112,7 @@ export default async function HomePage() {
                     ))}
                   </div>
                 }>
-                  <StreamHistory />
+                  <StreamHistory limit={5} />
                 </Suspense>
               </div>
 
