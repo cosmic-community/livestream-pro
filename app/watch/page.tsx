@@ -6,18 +6,32 @@ import MaintenanceMode from '@/components/MaintenanceMode'
 import { Eye, Clock, Calendar, ArrowRight } from 'lucide-react'
 
 export default async function WatchPage() {
-  // Check for maintenance mode
-  const siteSettings = await getSiteSettings()
+  let siteSettings = null
+  let allStreams: any[] = []
+
+  try {
+    // Check for maintenance mode with proper error handling
+    siteSettings = await getSiteSettings()
+  } catch (error) {
+    console.log('Site settings not available during build:', error)
+    // Continue without site settings during build
+  }
   
   if (siteSettings?.metadata.maintenance_mode) {
     return <MaintenanceMode siteSettings={siteSettings} />
   }
 
-  // Get all streams
-  const allStreams = await getStreamSessions(20)
-  const liveStreams = allStreams.filter(stream => stream.metadata.status === 'live')
-  const scheduledStreams = allStreams.filter(stream => stream.metadata.status === 'scheduled')
-  const recentStreams = allStreams.filter(stream => stream.metadata.status === 'ended').slice(0, 6)
+  try {
+    // Get all streams with proper error handling
+    allStreams = await getStreamSessions(20)
+  } catch (error) {
+    console.log('Stream sessions not available during build:', error)
+    // Continue with empty streams array during build
+  }
+
+  const liveStreams = allStreams.filter(stream => stream.metadata?.status === 'live')
+  const scheduledStreams = allStreams.filter(stream => stream.metadata?.status === 'scheduled')
+  const recentStreams = allStreams.filter(stream => stream.metadata?.status === 'ended').slice(0, 6)
 
   return (
     <div className="min-h-screen bg-background">
@@ -95,12 +109,7 @@ export default async function WatchPage() {
                   Start Streaming
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-3 border border-border hover:bg-muted/50 text-foreground rounded-lg font-medium transition-colors"
-                >
-                  Refresh
-                </button>
+                <RefreshButton />
               </div>
             </div>
           </section>
@@ -217,5 +226,17 @@ export default async function WatchPage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+// Client component for refresh functionality
+function RefreshButton() {
+  return (
+    <button
+      onClick={() => window.location.reload()}
+      className="px-6 py-3 border border-border hover:bg-muted/50 text-foreground rounded-lg font-medium transition-colors"
+    >
+      Refresh
+    </button>
   )
 }

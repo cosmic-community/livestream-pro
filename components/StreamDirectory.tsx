@@ -72,10 +72,10 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
         >
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black">
-            {stream.metadata.thumbnail ? (
+            {stream.metadata?.thumbnail ? (
               <img
                 src={`${stream.metadata.thumbnail}?w=800&h=450&fit=crop&auto=format,compress`}
-                alt={stream.metadata.title || stream.title}
+                alt={stream.metadata?.title || stream.title}
                 className="w-full h-full object-cover"
                 loading={priority ? 'eager' : 'lazy'}
               />
@@ -87,14 +87,14 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
             
             {/* Status Overlay */}
             <div className="absolute top-3 left-3">
-              <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(stream.metadata.status)}`}>
-                {getStatusIcon(stream.metadata.status)}
-                <span className="capitalize">{stream.metadata.status}</span>
+              <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(stream.metadata?.status || 'unknown')}`}>
+                {getStatusIcon(stream.metadata?.status || 'unknown')}
+                <span className="capitalize">{stream.metadata?.status || 'unknown'}</span>
               </div>
             </div>
 
             {/* Viewer Count for Live Streams */}
-            {stream.metadata.status === 'live' && (
+            {stream.metadata?.status === 'live' && stream.metadata?.viewer_count && (
               <div className="absolute top-3 right-3">
                 <div className="flex items-center gap-1 px-2 py-1 bg-black/70 rounded-full text-white text-xs">
                   <Users className="w-3 h-3" />
@@ -114,10 +114,10 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
           {/* Content */}
           <div className="p-4">
             <h3 className="font-semibold text-foreground group-hover:text-foreground/80 line-clamp-2 mb-2">
-              {stream.metadata.title || stream.title}
+              {stream.metadata?.title || stream.title}
             </h3>
             
-            {stream.metadata.description && (
+            {stream.metadata?.description && (
               <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                 {stream.metadata.description}
               </p>
@@ -132,7 +132,7 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
                 </div>
 
                 {/* Duration for ended streams */}
-                {stream.metadata.status === 'ended' && stream.metadata.duration > 0 && (
+                {stream.metadata?.status === 'ended' && stream.metadata?.duration && stream.metadata.duration > 0 && (
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span>{formatDuration(stream.metadata.duration)}</span>
@@ -141,7 +141,7 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
               </div>
 
               {/* Stream Type */}
-              {stream.metadata.stream_type && (
+              {stream.metadata?.stream_type && (
                 <span className="capitalize px-2 py-1 bg-muted rounded text-xs">
                   {stream.metadata.stream_type}
                 </span>
@@ -149,7 +149,7 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
             </div>
 
             {/* Tags */}
-            {stream.metadata.tags && stream.metadata.tags.length > 0 && (
+            {stream.metadata?.tags && stream.metadata.tags.length > 0 && (
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {stream.metadata.tags.slice(0, 3).map((tag, index) => (
                   <span
@@ -168,7 +168,7 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
             )}
 
             {/* Peak Viewers for ended streams */}
-            {stream.metadata.status === 'ended' && stream.metadata.peak_viewers > 0 && (
+            {stream.metadata?.status === 'ended' && stream.metadata?.peak_viewers && stream.metadata.peak_viewers > 0 && (
               <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                 <Eye className="w-3 h-3" />
                 <span>Peak: {stream.metadata.peak_viewers.toLocaleString()} viewers</span>

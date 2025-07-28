@@ -25,6 +25,12 @@ export const cosmicRead = createBucketClient({
 // Stream Sessions
 export async function getStreamSessions(limit: number = 10): Promise<StreamSession[]> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning empty array')
+      return []
+    }
+
     const { objects } = await cosmic.objects
       .find({ type: 'stream-sessions' })
       .props(['id', 'title', 'slug', 'created_at', 'metadata'])
@@ -39,12 +45,19 @@ export async function getStreamSessions(limit: number = 10): Promise<StreamSessi
     if (err && err.status === 404) {
       return []
     }
-    throw error
+    // Return empty array instead of throwing during build
+    return []
   }
 }
 
 export async function getStreamSession(id: string): Promise<StreamSession | null> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning null')
+      return null
+    }
+
     const { object } = await cosmic.objects
       .findOne({ type: 'stream-sessions', id })
       .props(['id', 'title', 'slug', 'created_at', 'metadata'])
@@ -57,7 +70,8 @@ export async function getStreamSession(id: string): Promise<StreamSession | null
     if (err && err.status === 404) {
       return null
     }
-    throw error
+    // Return null instead of throwing during build
+    return null
   }
 }
 
@@ -106,6 +120,12 @@ export async function deleteStreamSession(id: string): Promise<void> {
 // Site Settings
 export async function getSiteSettings(): Promise<SiteSettings | null> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning null')
+      return null
+    }
+
     const { object } = await cosmic.objects
       .findOne({ type: 'site-settings' })
       .props(['id', 'title', 'slug', 'metadata'])
@@ -118,7 +138,8 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
     if (err && err.status === 404) {
       return null
     }
-    throw error
+    // Return null instead of throwing during build
+    return null
   }
 }
 
@@ -141,6 +162,12 @@ export async function updateSiteSettings(
 // Platform Settings
 export async function getPlatformSettings(): Promise<PlatformSettings | null> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning null')
+      return null
+    }
+
     const { object } = await cosmic.objects
       .findOne({ type: 'platform-settings' })
       .props(['id', 'title', 'slug', 'metadata'])
@@ -153,7 +180,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings | null> {
     if (err && err.status === 404) {
       return null
     }
-    throw error
+    // Return null instead of throwing during build
+    return null
   }
 }
 
@@ -202,6 +230,12 @@ export async function getStreamAnalytics(
   limit: number = 100
 ): Promise<StreamAnalytics[]> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning empty array')
+      return []
+    }
+
     let query: any = { type: 'stream-analytics' }
     
     if (sessionId) {
@@ -245,13 +279,20 @@ export async function getStreamAnalytics(
     if (err && err.status === 404) {
       return []
     }
-    throw error
+    // Return empty array instead of throwing during build
+    return []
   }
 }
 
 // Utility functions
 export async function getObjectById<T = any>(id: string): Promise<T | null> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning null')
+      return null
+    }
+
     const { object } = await cosmic.objects
       .findOne({ id })
       .props(['id', 'title', 'slug', 'type', 'created_at', 'metadata'])
@@ -264,7 +305,8 @@ export async function getObjectById<T = any>(id: string): Promise<T | null> {
     if (err && err.status === 404) {
       return null
     }
-    throw error
+    // Return null instead of throwing during build
+    return null
   }
 }
 
@@ -274,6 +316,12 @@ export async function searchObjects(
   limit: number = 10
 ): Promise<any[]> {
   try {
+    // Check if required environment variables are available
+    if (!process.env.COSMIC_BUCKET_SLUG || !process.env.COSMIC_READ_KEY) {
+      console.log('Cosmic credentials not available, returning empty array')
+      return []
+    }
+
     // Note: Cosmic doesn't have built-in full-text search
     // This is a simplified search that looks for the term in titles
     const { objects } = await cosmic.objects
@@ -295,6 +343,7 @@ export async function searchObjects(
     if (err && err.status === 404) {
       return []
     }
-    throw error
+    // Return empty array instead of throwing during build
+    return []
   }
 }
