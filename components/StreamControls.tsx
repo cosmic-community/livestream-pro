@@ -1,196 +1,200 @@
 'use client'
 
-import { useState } from 'react'
-import { 
-  Play, 
-  Square, 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Monitor,
-  MonitorOff,
-  Settings
-} from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { StreamConfig, StreamControlsProps } from '@/types'
 
+// Make props optional for viewer mode
+interface OptionalStreamControlsProps {
+  isStreaming?: boolean
+  streamConfig?: StreamConfig
+  onStartStream?: () => Promise<void>
+  onStopStream?: () => Promise<void>
+  onConfigChange?: (config: StreamConfig) => void
+  viewerMode?: boolean
+}
+
 export default function StreamControls({
-  isStreaming,
-  streamConfig,
+  isStreaming = false,
+  streamConfig = {
+    video: true,
+    audio: true,
+    screen: false,
+    quality: 'auto'
+  },
   onStartStream,
   onStopStream,
-  onConfigChange
-}: StreamControlsProps) {
-  const [showSettings, setShowSettings] = useState(false)
+  onConfigChange,
+  viewerMode = false
+}: OptionalStreamControlsProps) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleVideo = () => {
-    onConfigChange({
-      ...streamConfig,
-      video: !streamConfig.video
-    })
+  // If in viewer mode, show minimal controls or stream info
+  if (viewerMode) {
+    return (
+      <div className="bg-muted/30 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${isStreaming ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+            <span className="font-medium text-foreground">
+              {isStreaming ? 'Stream is Live' : 'Stream is Offline'}
+            </span>
+          </div>
+          {isStreaming && (
+            <div className="text-sm text-muted-foreground">
+              Quality: {streamConfig.quality}
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
-  const toggleAudio = () => {
-    onConfigChange({
-      ...streamConfig,
-      audio: !streamConfig.audio
-    })
+  const handleStartStream = async () => {
+    if (!onStartStream) return
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      await onStartStream()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start stream')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const toggleScreen = () => {
-    onConfigChange({
-      ...streamConfig,
-      screen: !streamConfig.screen
-    })
+  const handleStopStream = async () => {
+    if (!onStopStream) return
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      await onStopStream()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to stop stream')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleQualityChange = (quality: string) => {
-    onConfigChange({
-      ...streamConfig,
-      quality: quality as StreamConfig['quality']
-    })
+  const handleConfigChange = (key: keyof StreamConfig, value: any) => {
+    if (!onConfigChange) return
+    
+    const newConfig = { ...streamConfig, [key]: value }
+    onConfigChange(newConfig)
   }
 
   return (
-    <div className="bg-muted/30 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-semibold text-foreground">Stream Controls</h3>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="control-button control-button-secondary p-2"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Main Controls */}
-      <div className="flex items-center gap-4 mb-6">
-        {/* Start/Stop Stream */}
-        {!isStreaming ? (
-          <button
-            onClick={onStartStream}
-            className="control-button bg-green-600 text-white hover:bg-green-700 px-6 py-3 text-base"
-            disabled={!streamConfig.video && !streamConfig.audio && !streamConfig.screen}
-          >
-            <Play className="w-5 h-5 mr-2" />
-            Start Stream
-          </button>
-        ) : (
-          <button
-            onClick={onStopStream}
-            className="control-button control-button-destructive px-6 py-3 text-base"
-          >
-            <Square className="w-5 h-5 mr-2" />
-            Stop Stream
-          </button>
+    <div className="space-y-6">
+      {/* Stream Status */}
+      <div className="bg-muted/30 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground">Stream Controls</h3>
+          <div className={`w-3 h-3 rounded-full ${isStreaming ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+        </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            {error}
+          </div>
         )}
 
-        {/* Media Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleVideo}
-            className={`control-button p-3 ${
-              streamConfig.video 
-                ? 'control-button-primary' 
-                : 'control-button-secondary'
-            }`}
-            title={streamConfig.video ? 'Turn off camera' : 'Turn on camera'}
-          >
-            {streamConfig.video ? (
-              <Video className="w-5 h-5" />
-            ) : (
-              <VideoOff className="w-5 h-5" />
-            )}
-          </button>
-
-          <button
-            onClick={toggleAudio}
-            className={`control-button p-3 ${
-              streamConfig.audio 
-                ? 'control-button-primary' 
-                : 'control-button-secondary'
-            }`}
-            title={streamConfig.audio ? 'Turn off microphone' : 'Turn on microphone'}
-          >
-            {streamConfig.audio ? (
-              <Mic className="w-5 h-5" />
-            ) : (
-              <MicOff className="w-5 h-5" />
-            )}
-          </button>
-
-          <button
-            onClick={toggleScreen}
-            className={`control-button p-3 ${
-              streamConfig.screen 
-                ? 'control-button-primary' 
-                : 'control-button-secondary'
-            }`}
-            title={streamConfig.screen ? 'Stop screen share' : 'Share screen'}
-          >
-            {streamConfig.screen ? (
-              <Monitor className="w-5 h-5" />
-            ) : (
-              <MonitorOff className="w-5 h-5" />
-            )}
-          </button>
+        <div className="flex gap-3">
+          {!isStreaming ? (
+            <button
+              onClick={handleStartStream}
+              disabled={isLoading}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+            >
+              {isLoading ? 'Starting...' : 'Start Stream'}
+            </button>
+          ) : (
+            <button
+              onClick={handleStopStream}
+              disabled={isLoading}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+            >
+              {isLoading ? 'Stopping...' : 'Stop Stream'}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Stream Settings */}
-      {showSettings && (
-        <div className="border-t border-border pt-6">
-          <h4 className="font-medium text-foreground mb-4">Stream Settings</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Quality Settings */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Stream Quality
-              </label>
-              <select
-                value={streamConfig.quality}
-                onChange={(e) => handleQualityChange(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isStreaming}
-              >
-                <option value="auto">Auto</option>
-                <option value="low">Low (360p)</option>
-                <option value="medium">Medium (720p)</option>
-                <option value="high">High (1080p)</option>
-              </select>
-            </div>
-
-            {/* Stream Type Info */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Stream Type
-              </label>
-              <div className="px-3 py-2 bg-muted rounded-md text-sm text-muted-foreground">
-                {streamConfig.screen && streamConfig.video 
-                  ? 'Camera + Screen Share'
-                  : streamConfig.screen 
-                  ? 'Screen Share Only'
-                  : streamConfig.video 
-                  ? 'Camera Only'
-                  : 'Audio Only'
-                }
-              </div>
-            </div>
+      {/* Stream Configuration */}
+      <div className="bg-muted/30 rounded-lg p-6">
+        <h3 className="font-semibold text-foreground mb-4">Configuration</h3>
+        
+        <div className="space-y-4">
+          {/* Video Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Video</label>
+            <button
+              onClick={() => handleConfigChange('video', !streamConfig.video)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                streamConfig.video ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  streamConfig.video ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
 
-          {/* Stream Requirements */}
-          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <h5 className="font-medium text-blue-400 mb-2">Requirements</h5>
-            <ul className="text-sm text-blue-300 space-y-1">
-              <li>• At least one media source must be enabled</li>
-              <li>• Camera and microphone permissions required</li>
-              <li>• Screen share requires additional browser permission</li>
-              <li>• Higher quality settings require more bandwidth</li>
-            </ul>
+          {/* Audio Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Audio</label>
+            <button
+              onClick={() => handleConfigChange('audio', !streamConfig.audio)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                streamConfig.audio ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  streamConfig.audio ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Screen Share Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Screen Share</label>
+            <button
+              onClick={() => handleConfigChange('screen', !streamConfig.screen)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                streamConfig.screen ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  streamConfig.screen ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Quality Selection */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Quality</label>
+            <select
+              value={streamConfig.quality}
+              onChange={(e) => handleConfigChange('quality', e.target.value as StreamConfig['quality'])}
+              className="px-3 py-1 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="auto">Auto</option>
+              <option value="low">Low (480p)</option>
+              <option value="medium">Medium (720p)</option>
+              <option value="high">High (1080p)</option>
+            </select>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

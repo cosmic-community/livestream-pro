@@ -54,8 +54,11 @@ export default async function HomePage() {
                 />
               </div>
 
-              {/* Stream Controls - Now properly handles client-side logic */}
-              <StreamControls />
+              {/* Stream Controls - Now properly handles viewer mode */}
+              <StreamControls 
+                isStreaming={isLive}
+                viewerMode={true}
+              />
             </div>
           </div>
 
