@@ -102,15 +102,22 @@ export class StreamManager {
         if (this.localStream && config.video) {
           const combinedStream = new MediaStream();
           
-          // Add video track from screen
-          if (this.screenStream.getVideoTracks().length > 0) {
-            combinedStream.addTrack(this.screenStream.getVideoTracks()[0]);
+          // FIXED: Add null checks for MediaStreamTrack
+          const screenVideoTracks = this.screenStream.getVideoTracks();
+          if (screenVideoTracks.length > 0) {
+            const videoTrack = screenVideoTracks[0];
+            if (videoTrack) {
+              combinedStream.addTrack(videoTrack);
+            }
           }
           
           // Add audio from webcam or screen
           const audioTracks = this.localStream.getAudioTracks();
           if (audioTracks.length > 0) {
-            combinedStream.addTrack(audioTracks[0]);
+            const audioTrack = audioTracks[0];
+            if (audioTrack) {
+              combinedStream.addTrack(audioTrack);
+            }
           }
           
           this.localStream = combinedStream;

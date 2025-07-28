@@ -4,6 +4,7 @@ import ViewerCount from '@/components/ViewerCount'
 import StreamStatus from '@/components/StreamStatus'
 import StreamHistory from '@/components/StreamHistory'
 import { getActiveStreamSession, getPlatformSettings } from '@/lib/cosmic'
+import { StreamConfig } from '@/types'
 
 export default async function HomePage() {
   const activeSession = await getActiveStreamSession()
@@ -12,6 +13,14 @@ export default async function HomePage() {
   const isLive = activeSession?.metadata.status === 'live'
   const streamTitle = settings?.metadata.stream_title || 'Live Stream'
   const streamDescription = settings?.metadata.stream_description || 'Welcome to my live stream!'
+
+  // FIXED: Provide proper StreamControlsProps with default values
+  const defaultStreamConfig: StreamConfig = {
+    video: true,
+    audio: true,
+    screen: false,
+    quality: 'auto'
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,8 +64,14 @@ export default async function HomePage() {
                 />
               </div>
 
-              {/* Stream Controls (only visible to streamer) */}
-              <StreamControls />
+              {/* Stream Controls (only visible to streamer) - FIXED: Added proper props */}
+              <StreamControls 
+                isStreaming={false}
+                streamConfig={defaultStreamConfig}
+                onStartStream={() => {}}
+                onStopStream={() => {}}
+                onConfigChange={() => {}}
+              />
             </div>
           </div>
 

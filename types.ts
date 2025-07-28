@@ -62,8 +62,8 @@ interface ViewerAnalytics extends CosmicObject {
   };
 }
 
-// Type literals for select-dropdown values
-type StreamStatus = 'live' | 'ended' | 'scheduled' | 'error';
+// Type literals for select-dropdown values - FIXED: Added 'offline' to StreamStatus
+type StreamStatus = 'live' | 'offline' | 'ended' | 'scheduled' | 'error';
 type StreamType = 'webcam' | 'screen' | 'both';
 type StreamQuality = 'low' | 'medium' | 'high' | 'auto';
 type DeviceType = 'desktop' | 'mobile' | 'tablet';
