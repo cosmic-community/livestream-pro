@@ -50,7 +50,7 @@ class WebRTCManager {
     // Add local stream tracks if available
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
-        // Add null check to ensure localStream is not null when passed to addTrack
+        // Fixed: Add null check to ensure localStream is not null when passed to addTrack
         if (this.localStream) {
           peer.addTrack(track, this.localStream)
         }
@@ -256,6 +256,6 @@ export const mediaUtils = {
   },
 
   isMobile(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    return /Android|webOS|iPhone|iPad|IPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
 }
