@@ -2,17 +2,18 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import CosmicBadge from '@/components/CosmicBadge'
+import { AuthProvider } from '@/hooks/useAuth'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'LiveStream Pro - Personal Live Streaming Platform',
-  description: 'Stream your webcam and screen to viewers without authentication required. Built with Next.js and Cosmic CMS.',
-  keywords: 'live streaming, webcam, screen share, broadcast, real-time',
+  description: 'Stream your webcam and screen to viewers with authentication. Built with Next.js and Cosmic CMS.',
+  keywords: 'live streaming, webcam, screen share, broadcast, real-time, authentication',
   authors: [{ name: 'LiveStream Pro' }],
   openGraph: {
     title: 'LiveStream Pro - Personal Live Streaming Platform',
-    description: 'Stream your webcam and screen to viewers without authentication required.',
+    description: 'Stream your webcam and screen to viewers with authentication.',
     type: 'website',
   },
   twitter: {
@@ -32,9 +33,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <main className="min-h-screen bg-background">
-          {children}
-        </main>
+        <AuthProvider>
+          <main className="min-h-screen bg-background">
+            {children}
+          </main>
+        </AuthProvider>
         <CosmicBadge bucketSlug={bucketSlug} />
       </body>
     </html>

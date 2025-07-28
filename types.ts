@@ -20,6 +20,63 @@ export interface CosmicResponse<T = any> {
   error?: string
 }
 
+// Authentication Types
+export interface User {
+  id: string
+  slug: string
+  title: string
+  type: 'streamers'
+  status: 'published' | 'draft'
+  created_at: string
+  modified_at: string
+  metadata: {
+    username: string
+    email: string
+    profile_image?: {
+      url: string
+      imgix_url: string
+    }
+    bio?: string
+    is_live: boolean
+    personal_stream_key: string
+    follower_count: number
+    total_views: number
+    account_status: {
+      key: string
+      value: string
+    }
+    social_links?: Record<string, string>
+  }
+}
+
+export interface AuthSession {
+  token: string
+  user: User
+  expiresAt: string
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterData {
+  username: string
+  email: string
+  password: string
+  bio?: string
+}
+
+export interface AuthContextType {
+  user: User | null
+  isLoading: boolean
+  isAuthenticated: boolean
+  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>
+  register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
+  refreshUser: () => Promise<void>
+}
+
 // Stream Types
 export interface StreamSession extends CosmicObject {
   metadata: {
@@ -44,7 +101,8 @@ export interface StreamSession extends CosmicObject {
     category?: string
     stream_type?: string
     quality?: string
-    peer_id?: string // Added missing peer_id property
+    peer_id?: string
+    streamer?: User
   }
 }
 
@@ -62,6 +120,7 @@ export interface CreateStreamSessionData {
     started_at?: string
     quality?: string
     platform?: string
+    streamer?: string
   }
 }
 
@@ -98,7 +157,6 @@ export interface PeerConfig {
   secure: boolean
 }
 
-// Added missing PeerConnection interface
 export interface PeerConnection {
   id: string
   connection: RTCPeerConnection
