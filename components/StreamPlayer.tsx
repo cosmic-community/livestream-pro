@@ -1,165 +1,151 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Play, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { StreamPlayerProps } from '@/types'
 import { streamManager } from '@/lib/streaming'
 
-export default function StreamPlayer({ 
-  streamId, 
-  isStreamer,
+export default function StreamPlayer({
+  streamId,
+  isStreamer = false,
+  className = '',
   onViewerCountChange
 }: StreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [streamActive, setStreamActive] = useState(false)
 
   useEffect(() => {
     if (isStreamer) {
-      // For streamer, show local stream preview
-      setupStreamerPreview()
-    } else {
-      // For viewers, connect to streamer's stream
-      connectToStream()
-    }
-
-    return () => {
-      // Cleanup
-      if (videoRef.current) {
-        videoRef.current.srcObject = null
+      // For streamer: show local stream preview
+      const updatePreview = () => {
+        const localStream = streamManager.getLocalStream()
+        if (videoRef.current && localStream) {
+          videoRef.current.srcObject = localStream
+          setStreamActive(true)
+          setError(null)
+        }
       }
+
+      // Update preview every second
+      const interval = setInterval(updatePreview, 1000)
+      updatePreview() // Initial update
+
+      return () => clearInterval(interval)
+    } else if (streamId) {
+      // For viewer: connect to remote stream
+      setIsLoading(true)
+      
+      streamManager.connectToStream(streamId)
+        .then((remoteStream) => {
+          if (videoRef.current && remoteStream) {
+            videoRef.current.srcObject = remoteStream
+            setStreamActive(true)
+            setError(null)
+          }
+        })
+        .catch((err) => {
+          setError('Failed to connect to stream')
+          console.error('Stream connection error:', err)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
     }
   }, [isStreamer, streamId])
 
-  const setupStreamerPreview = async () => {
-    try {
-      setIsLoading(true)
+  // Update viewer count periodically for streamers
+  useEffect(() => {
+    if (isStreamer && onViewerCountChange) {
+      const interval = setInterval(() => {
+        const stats = streamManager.getStreamStats()
+        onViewerCountChange(stats.viewerCount)
+      }, 2000)
       
-      // Get local stream for preview
-      const localStream = streamManager.getLocalStream()
-      if (localStream && videoRef.current) {
-        videoRef.current.srcObject = localStream
-        setIsConnected(true)
-      }
-    } catch (error) {
-      console.error('Failed to setup streamer preview:', error)
-      setError('Failed to access camera/microphone')
-    } finally {
-      setIsLoading(false)
+      return () => clearInterval(interval)
     }
-  }
+  }, [isStreamer, onViewerCountChange])
 
-  const connectToStream = async () => {
-    if (!streamId) {
-      setError('No active stream')
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      // Connect to streamer's peer
-      const remoteStream = await streamManager.connectToStream(streamId)
-      
-      if (remoteStream && videoRef.current) {
-        videoRef.current.srcObject = remoteStream
-        setIsConnected(true)
-        // Notify parent of viewer count change if callback provided
-        if (onViewerCountChange) {
-          onViewerCountChange(1)
-        }
-      } else {
-        setError('Failed to connect to stream')
-      }
-    } catch (error) {
-      console.error('Failed to connect to stream:', error)
-      setError('Stream unavailable')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleRetryConnection = () => {
-    setError(null)
-    if (isStreamer) {
-      setupStreamerPreview()
-    } else {
-      connectToStream()
-    }
+  const handleVideoError = () => {
+    setError('Video playback error')
+    setStreamActive(false)
   }
 
   return (
-    <div className="video-container">
+    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-white text-sm">Connecting to stream...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+          <div className="text-center p-6">
+            <div className="text-red-400 text-4xl mb-4">⚠️</div>
+            <p className="text-white text-lg mb-2">Stream Error</p>
+            <p className="text-gray-400 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* No Stream State */}
+      {!streamActive && !isLoading && !error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="text-center p-6">
+            <div className="text-gray-400 text-6xl mb-4">📹</div>
+            <p className="text-white text-lg mb-2">
+              {isStreamer ? 'Stream Preview' : 'Stream Offline'}
+            </p>
+            <p className="text-gray-400 text-sm">
+              {isStreamer 
+                ? 'Configure your stream settings and click "Start Stream"' 
+                : 'The streamer is currently offline'
+              }
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Video Element */}
       <video
         ref={videoRef}
-        className="video-element"
         autoPlay
         playsInline
         muted={isStreamer} // Mute local preview to avoid feedback
-        controls={false}
+        controls={!isStreamer} // Show controls for viewers
+        onError={handleVideoError}
+        className="w-full h-full object-cover"
+        style={{ display: streamActive ? 'block' : 'none' }}
       />
 
-      {/* Overlay Content */}
-      <div className="stream-overlay">
-        {/* Loading State */}
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="text-center text-white">
-              <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p>{isStreamer ? 'Setting up preview...' : 'Connecting to stream...'}</p>
-            </div>
+      {/* Stream Status Overlay */}
+      {streamActive && (
+        <div className="absolute top-4 left-4 z-20">
+          <div className="flex items-center gap-2 px-3 py-1 bg-black/70 rounded-full">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-white text-xs font-medium">
+              {isStreamer ? 'LIVE PREVIEW' : 'LIVE'}
+            </span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Error State */}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="text-center text-white max-w-md px-4">
-              <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
-              <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
-              <p className="text-sm text-gray-300 mb-4">{error}</p>
-              <button
-                onClick={handleRetryConnection}
-                className="control-button control-button-primary px-4 py-2"
-              >
-                Retry Connection
-              </button>
-            </div>
+      {/* Streamer Controls Overlay */}
+      {isStreamer && streamActive && (
+        <div className="absolute bottom-4 right-4 z-20">
+          <div className="flex items-center gap-2 px-3 py-1 bg-black/70 rounded-full">
+            <span className="text-white text-xs">
+              Preview Mode
+            </span>
           </div>
-        )}
-
-        {/* Offline State for Viewers */}
-        {!isStreamer && !streamId && !isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="text-center text-white">
-              <Play className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold mb-2">Stream Offline</h3>
-              <p className="text-gray-300">The stream is currently offline. Check back later!</p>
-            </div>
-          </div>
-        )}
-
-        {/* Stream Info Overlay */}
-        {isConnected && !error && (
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="flex items-center justify-between">
-              {/* Status Indicator */}
-              <div className="status-indicator status-live">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse-red"></div>
-                <span>LIVE</span>
-              </div>
-
-              {/* Quality Indicator */}
-              <div className="bg-black/50 text-white px-2 py-1 rounded text-xs">
-                HD
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

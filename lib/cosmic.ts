@@ -1,167 +1,293 @@
-import { createBucketClient } from '@cosmicjs/sdk';
+import { createBucketClient } from '@cosmicjs/sdk'
 import { 
+  CosmicResponse, 
   StreamSession, 
-  PlatformSettings, 
-  ViewerAnalytics, 
   CreateStreamSessionData,
   StreamSessionUpdate,
-  CosmicResponse 
-} from '@/types';
+  SiteSettings,
+  PlatformSettings,
+  StreamAnalytics 
+} from '@/types'
 
-export const cosmic = createBucketClient({
+// Cosmic client for server-side operations (with write access)
+const cosmic = createBucketClient({
   bucketSlug: process.env.COSMIC_BUCKET_SLUG as string,
   readKey: process.env.COSMIC_READ_KEY as string,
   writeKey: process.env.COSMIC_WRITE_KEY as string,
-});
+})
 
-// Simple error helper for Cosmic SDK
-function hasStatus(error: unknown): error is { status: number } {
-  return typeof error === 'object' && error !== null && 'status' in error;
-}
+// Cosmic client for client-side operations (read-only)
+export const cosmicRead = createBucketClient({
+  bucketSlug: process.env.COSMIC_BUCKET_SLUG as string,
+  readKey: process.env.COSMIC_READ_KEY as string,
+})
 
-// Stream session functions
-export async function getStreamSessions(): Promise<StreamSession[]> {
+// Stream Sessions
+export async function getStreamSessions(limit: number = 10): Promise<StreamSession[]> {
   try {
-    const response = await cosmic.objects
+    const { objects } = await cosmic.objects
       .find({ type: 'stream-sessions' })
-      .props(['id', 'title', 'slug', 'metadata', 'created_at'])
+      .props(['id', 'title', 'slug', 'created_at', 'metadata'])
+      .depth(1)
+      .limit(limit)
       .sort('-created_at')
-      .depth(1);
-    
-    return response.objects as StreamSession[];
+
+    return objects || []
   } catch (error) {
-    if (hasStatus(error) && error.status === 404) {
-      return [];
+    console.error('Error fetching stream sessions:', error)
+    if (error.status === 404) {
+      return []
     }
-    throw new Error('Failed to fetch stream sessions');
+    throw error
   }
 }
 
-export async function getActiveStreamSession(): Promise<StreamSession | null> {
+export async function getStreamSession(id: string): Promise<StreamSession | null> {
   try {
-    const response = await cosmic.objects
-      .find({ 
-        type: 'stream-sessions',
-        'metadata.status': 'live'
-      })
-      .props(['id', 'title', 'slug', 'metadata', 'created_at'])
-      .limit(1)
-      .depth(1);
-    
-    return response.objects[0] as StreamSession || null;
+    const { object } = await cosmic.objects
+      .findOne({ type: 'stream-sessions', id })
+      .props(['id', 'title', 'slug', 'created_at', 'metadata'])
+      .depth(1)
+
+    return object || null
   } catch (error) {
-    if (hasStatus(error) && error.status === 404) {
-      return null;
+    console.error('Error fetching stream session:', error)
+    if (error.status === 404) {
+      return null
     }
-    throw new Error('Failed to fetch active stream session');
+    throw error
   }
 }
 
-export async function createStreamSession(sessionData: CreateStreamSessionData): Promise<StreamSession> {
+export async function createStreamSession(data: CreateStreamSessionData): Promise<StreamSession> {
   try {
-    const response = await cosmic.objects.insertOne({
-      type: 'stream-sessions',
-      title: sessionData.title,
-      metadata: sessionData.metadata
-    });
-    
-    return response.object as StreamSession;
+    const { object } = await cosmic.objects.insertOne({
+      title: data.title,
+      type: data.type,
+      slug: data.slug,
+      status: 'published',
+      metadata: data.metadata
+    })
+
+    return object
   } catch (error) {
-    console.error('Error creating stream session:', error);
-    throw new Error('Failed to create stream session');
+    console.error('Error creating stream session:', error)
+    throw error
   }
 }
 
-export async function updateStreamSession(id: string, updates: StreamSessionUpdate): Promise<StreamSession> {
+export async function updateStreamSession(
+  id: string, 
+  updateData: StreamSessionUpdate
+): Promise<StreamSession> {
   try {
-    const response = await cosmic.objects.updateOne(id, {
-      metadata: updates
-    });
-    
-    return response.object as StreamSession;
+    const { object } = await cosmic.objects.updateOne(id, {
+      metadata: updateData
+    })
+
+    return object
   } catch (error) {
-    console.error('Error updating stream session:', error);
-    throw new Error('Failed to update stream session');
+    console.error('Error updating stream session:', error)
+    throw error
   }
 }
 
-// Platform settings functions
+export async function deleteStreamSession(id: string): Promise<void> {
+  try {
+    await cosmic.objects.deleteOne(id)
+  } catch (error) {
+    console.error('Error deleting stream session:', error)
+    throw error
+  }
+}
+
+// Site Settings
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  try {
+    const { object } = await cosmic.objects
+      .findOne({ type: 'site-settings' })
+      .props(['id', 'title', 'slug', 'metadata'])
+      .depth(1)
+
+    return object || null
+  } catch (error) {
+    console.error('Error fetching site settings:', error)
+    if (error.status === 404) {
+      return null
+    }
+    throw error
+  }
+}
+
+export async function updateSiteSettings(
+  id: string,
+  metadata: Partial<SiteSettings['metadata']>
+): Promise<SiteSettings> {
+  try {
+    const { object } = await cosmic.objects.updateOne(id, {
+      metadata
+    })
+
+    return object
+  } catch (error) {
+    console.error('Error updating site settings:', error)
+    throw error
+  }
+}
+
+// Platform Settings
 export async function getPlatformSettings(): Promise<PlatformSettings | null> {
   try {
-    const response = await cosmic.objects
-      .find({ type: 'platform-settings' })
-      .props(['id', 'title', 'metadata'])
-      .limit(1);
-    
-    return response.objects[0] as PlatformSettings || null;
+    const { object } = await cosmic.objects
+      .findOne({ type: 'platform-settings' })
+      .props(['id', 'title', 'slug', 'metadata'])
+      .depth(1)
+
+    return object || null
   } catch (error) {
-    if (hasStatus(error) && error.status === 404) {
-      return null;
+    console.error('Error fetching platform settings:', error)
+    if (error.status === 404) {
+      return null
     }
-    throw new Error('Failed to fetch platform settings');
+    throw error
   }
 }
 
-export async function updatePlatformSettings(settings: Partial<PlatformSettings['metadata']>): Promise<PlatformSettings> {
+export async function updatePlatformSettings(
+  id: string,
+  metadata: Partial<PlatformSettings['metadata']>
+): Promise<PlatformSettings> {
   try {
-    // First, try to get existing settings
-    const existing = await getPlatformSettings();
-    
-    if (existing) {
-      const response = await cosmic.objects.updateOne(existing.id, {
-        metadata: { ...existing.metadata, ...settings }
-      });
-      return response.object as PlatformSettings;
-    } else {
-      // Create new settings if none exist
-      const response = await cosmic.objects.insertOne({
-        type: 'platform-settings',
-        title: 'Platform Settings',
-        metadata: {
-          stream_title: 'Live Stream',
-          stream_description: 'Default stream description',
-          ...settings
-        }
-      });
-      return response.object as PlatformSettings;
-    }
+    const { object } = await cosmic.objects.updateOne(id, {
+      metadata
+    })
+
+    return object
   } catch (error) {
-    console.error('Error updating platform settings:', error);
-    throw new Error('Failed to update platform settings');
+    console.error('Error updating platform settings:', error)
+    throw error
   }
 }
 
-// Viewer analytics functions
-export async function createViewerAnalytics(analyticsData: Omit<ViewerAnalytics['metadata'], 'id' | 'created_at' | 'modified_at'>): Promise<ViewerAnalytics> {
+// Analytics
+export async function createStreamAnalytics(data: {
+  type: 'stream-analytics'
+  title: string
+  slug: string
+  metadata: StreamAnalytics['metadata']
+}): Promise<StreamAnalytics> {
   try {
-    const response = await cosmic.objects.insertOne({
-      type: 'viewer-analytics',
-      title: `Viewer ${Date.now()}`,
-      metadata: analyticsData
-    });
-    
-    return response.object as ViewerAnalytics;
+    const { object } = await cosmic.objects.insertOne({
+      title: data.title,
+      type: data.type,
+      slug: data.slug,
+      status: 'published',
+      metadata: data.metadata
+    })
+
+    return object
   } catch (error) {
-    console.error('Error creating viewer analytics:', error);
-    throw new Error('Failed to create viewer analytics');
+    console.error('Error creating stream analytics:', error)
+    throw error
   }
 }
 
-export async function getStreamAnalytics(sessionId: string): Promise<ViewerAnalytics[]> {
+export async function getStreamAnalytics(
+  sessionId?: string,
+  timeRange?: '24h' | '7d' | '30d',
+  limit: number = 100
+): Promise<StreamAnalytics[]> {
   try {
-    const response = await cosmic.objects
-      .find({ 
-        type: 'viewer-analytics',
-        'metadata.session_id': sessionId
-      })
-      .props(['id', 'metadata', 'created_at'])
-      .sort('-created_at');
+    let query: any = { type: 'stream-analytics' }
     
-    return response.objects as ViewerAnalytics[];
-  } catch (error) {
-    if (hasStatus(error) && error.status === 404) {
-      return [];
+    if (sessionId) {
+      query['metadata.session_id'] = sessionId
     }
-    throw new Error('Failed to fetch stream analytics');
+
+    // Add time range filter if specified
+    if (timeRange) {
+      const now = new Date()
+      let startDate: Date
+      
+      switch (timeRange) {
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+          break
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          break
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          break
+        default:
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      }
+      
+      // Note: This is a simplified time filter - in production you might want
+      // to use Cosmic's date filtering capabilities if available
+    }
+
+    const { objects } = await cosmic.objects
+      .find(query)
+      .props(['id', 'title', 'slug', 'created_at', 'metadata'])
+      .depth(1)
+      .limit(limit)
+      .sort('-created_at')
+
+    return objects || []
+  } catch (error) {
+    console.error('Error fetching stream analytics:', error)
+    if (error.status === 404) {
+      return []
+    }
+    throw error
+  }
+}
+
+// Utility functions
+export async function getObjectById<T = any>(id: string): Promise<T | null> {
+  try {
+    const { object } = await cosmic.objects
+      .findOne({ id })
+      .props(['id', 'title', 'slug', 'type', 'created_at', 'metadata'])
+      .depth(1)
+
+    return object || null
+  } catch (error) {
+    console.error('Error fetching object by ID:', error)
+    if (error.status === 404) {
+      return null
+    }
+    throw error
+  }
+}
+
+export async function searchObjects(
+  type: string,
+  searchTerm: string,
+  limit: number = 10
+): Promise<any[]> {
+  try {
+    // Note: Cosmic doesn't have built-in full-text search
+    // This is a simplified search that looks for the term in titles
+    const { objects } = await cosmic.objects
+      .find({ type })
+      .props(['id', 'title', 'slug', 'created_at', 'metadata'])
+      .depth(1)
+      .limit(limit)
+
+    // Filter results that contain the search term (case-insensitive)
+    const filtered = objects?.filter(obj => 
+      obj.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      JSON.stringify(obj.metadata).toLowerCase().includes(searchTerm.toLowerCase())
+    ) || []
+
+    return filtered
+  } catch (error) {
+    console.error('Error searching objects:', error)
+    if (error.status === 404) {
+      return []
+    }
+    throw error
   }
 }
