@@ -83,10 +83,10 @@ export default function StreamHistory() {
                 
                 <div className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  <span>{session.metadata.peak_viewers || 0} peak</span>
+                  <span>{session.metadata?.peak_viewers || 0} peak</span>
                 </div>
 
-                {session.metadata.duration && (
+                {session.metadata?.duration && (
                   <div className="flex items-center gap-1 col-span-2">
                     <Clock className="w-3 h-3" />
                     <span>{formatDuration(session.metadata.duration)}</span>
@@ -97,14 +97,14 @@ export default function StreamHistory() {
               {/* Status Badge */}
               <div className="mt-2">
                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                  session.metadata.status === 'live' 
+                  session.metadata?.status === 'live' 
                     ? 'bg-red-500/20 text-red-400' 
                     : 'bg-muted text-muted-foreground'
                 }`}>
                   <div className={`w-1.5 h-1.5 rounded-full ${
-                    session.metadata.status === 'live' ? 'bg-red-400' : 'bg-muted-foreground'
+                    session.metadata?.status === 'live' ? 'bg-red-400' : 'bg-muted-foreground'
                   }`}></div>
-                  {session.metadata.status}
+                  {session.metadata?.status || 'offline'}
                 </span>
               </div>
             </div>

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate session duration if not provided
-    const startTime = new Date(activeSession.metadata.start_time)
+    const startTime = new Date(activeSession.metadata.start_time || activeSession.metadata.started_at)
     const endTime = new Date()
     const calculatedDuration = duration || Math.floor((endTime.getTime() - startTime.getTime()) / 1000)
 

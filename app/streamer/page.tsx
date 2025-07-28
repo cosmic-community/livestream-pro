@@ -82,7 +82,7 @@ export default function StreamerPage() {
   }
 
   const handleViewerCountChange = (count: number) => {
-    setStreamStats(prev => ({
+    setStreamStats((prev: StreamStats) => ({
       ...prev,
       viewerCount: count,
     }))

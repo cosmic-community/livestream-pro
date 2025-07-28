@@ -16,7 +16,7 @@ export interface StreamControlsProps {
 export interface StreamPlayerProps {
   streamId?: string
   isStreamer: boolean
-  // Removed onViewerCountChange to fix Next.js 15 static generation error
+  onViewerCountChange?: (count: number) => void
 }
 
 export interface ViewerCountProps {
@@ -29,23 +29,92 @@ export interface StreamStatusProps {
   duration: number
 }
 
+export interface StreamStats {
+  isLive: boolean
+  viewerCount: number
+  duration: number
+  bitrate: number
+  quality: 'auto' | 'high' | 'medium' | 'low'
+}
+
+export interface PeerConfig {
+  host: string
+  port: number
+  path: string
+  secure: boolean
+}
+
 export interface StreamSession {
   id: string
   title: string
   slug: string
+  created_at: string
   metadata: {
     status: 'live' | 'offline'
     stream_key: string
     viewer_count: number
     peak_viewers: number
     started_at: string
+    start_time: string
+    end_time?: string
     ended_at?: string
+    duration?: number
     platform: string
     stream_url?: string
+    stream_type?: string
+    tags?: string[]
     thumbnail?: {
       imgix_url: string
     }
   }
+}
+
+export interface CreateStreamSessionData {
+  type: string
+  title: string
+  slug: string
+  metadata: {
+    start_time: string
+    viewer_count: number
+    peak_viewers: number
+    status: 'live' | 'offline'
+    stream_type: string
+    tags: string[]
+  }
+}
+
+export interface StreamSessionUpdate {
+  end_time?: string
+  duration?: number
+  status?: 'live' | 'offline' | 'ended'
+  viewer_count?: number
+  peak_viewers?: number
+}
+
+export interface ViewerAnalytics {
+  id: string
+  title: string
+  slug: string
+  created_at: string
+  modified_at: string
+  metadata: {
+    session_id: string
+    viewer_id: string
+    join_time: string
+    leave_time?: string
+    duration?: number
+    device_type: string
+    location?: {
+      country: string
+      city: string
+    }
+  }
+}
+
+export interface CosmicResponse<T> {
+  object?: T
+  objects: T[]
+  total: number
 }
 
 export interface PlatformSettings {
@@ -62,6 +131,10 @@ export interface PlatformSettings {
     overlay_theme: 'dark' | 'light'
     primary_color: string
     secondary_color: string
+    default_quality?: string
+    enable_chat?: boolean
+    enable_analytics?: boolean
+    auto_record?: boolean
   }
 }
 

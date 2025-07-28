@@ -5,9 +5,12 @@ export async function GET() {
   try {
     const sessions = await getStreamSessions()
 
-    // Calculate analytics from session data
-    const totalViews = sessions.reduce((sum, session) => sum + (session.metadata.peak_viewers || 0), 0)
-    const totalHours = sessions.reduce((sum, session) => sum + ((session.metadata.duration || 0) / 3600), 0)
+    // Calculate analytics from session data with proper null checks
+    const totalViews = sessions.reduce((sum, session) => sum + (session.metadata?.peak_viewers || 0), 0)
+    const totalHours = sessions.reduce((sum, session) => {
+      const duration = session.metadata?.duration || 0
+      return sum + (duration / 3600)
+    }, 0)
     const averageViewers = sessions.length > 0 ? totalViews / sessions.length : 0
 
     // Mock top countries data (in real app, this would come from viewer analytics)
