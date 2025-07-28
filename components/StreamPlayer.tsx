@@ -3,6 +3,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { StreamPlayerProps } from '@/types'
 
+// Define interface for stream control methods
+interface StreamControlMethods {
+  startStream: (config: { video: boolean; audio: boolean; screen?: boolean }) => Promise<void>
+  stopStream: () => void
+  getLocalStream: () => MediaStream | null
+  isStreamActive: () => boolean
+}
+
 export default function StreamPlayer({
   streamId,
   isStreamer = false,
@@ -255,8 +263,25 @@ export default function StreamPlayer({
     setStreamActive(false)
   }
 
+  // Fix: Expose streaming control methods properly
+  const streamControlMethods: StreamControlMethods = {
+    startStream: startLocalStream,
+    stopStream: stopLocalStream,
+    getLocalStream: () => localStream,
+    isStreamActive: () => streamActive
+  }
+
+  // Fix: Expose methods via imperative handle or ref
+  useEffect(() => {
+    const container = videoRef.current?.closest('[data-stream-player]') as any
+    if (container && isStreamer) {
+      // Attach methods to container for parent access
+      container.streamMethods = streamControlMethods
+    }
+  }, [isStreamer, streamActive, localStream])
+
   return (
-    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
+    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`} data-stream-player>
       {/* Loading State */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
@@ -332,27 +357,6 @@ export default function StreamPlayer({
               {localStream.getVideoTracks().length}V / {localStream.getAudioTracks().length}A
             </span>
           </div>
-        </div>
-      )}
-
-      {/* Expose methods for parent components */}
-      {isStreamer && (
-        <div className="hidden">
-          <button
-            ref={(btn) => {
-              if (btn && !btn.dataset.methodsAttached) {
-                btn.dataset.methodsAttached = 'true'
-                // Attach methods to parent component via ref callback
-                const parent = btn.closest('[data-stream-player]')
-                if (parent) {
-                  (parent as any).startStream = startLocalStream
-                  (parent as any).stopStream = stopLocalStream
-                  (parent as any).getLocalStream = () => localStream
-                  (parent as any).isStreamActive = () => streamActive
-                }
-              }
-            }}
-          />
         </div>
       )}
     </div>

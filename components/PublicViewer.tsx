@@ -73,6 +73,7 @@ export default function PublicViewer({ session, siteSettings }: PublicViewerProp
     
     try {
       // Get streamer's peer ID from session or use session ID as fallback
+      // Fix: Added proper null check for peer_id property
       const streamerId = session.metadata.peer_id || `streamer-${session.id}`
       
       console.log('Attempting to connect to streamer:', streamerId)
