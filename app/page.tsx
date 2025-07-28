@@ -4,7 +4,6 @@ import ViewerCount from '@/components/ViewerCount'
 import StreamStatus from '@/components/StreamStatus'
 import StreamHistory from '@/components/StreamHistory'
 import { getActiveStreamSession, getPlatformSettings } from '@/lib/cosmic'
-import { StreamConfig } from '@/types'
 
 export default async function HomePage() {
   const activeSession = await getActiveStreamSession()
@@ -13,14 +12,6 @@ export default async function HomePage() {
   const isLive = activeSession?.metadata.status === 'live'
   const streamTitle = settings?.metadata.stream_title || 'Live Stream'
   const streamDescription = settings?.metadata.stream_description || 'Welcome to my live stream!'
-
-  // Provide proper StreamControlsProps with default values
-  const defaultStreamConfig: StreamConfig = {
-    video: true,
-    audio: true,
-    screen: false,
-    quality: 'auto'
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,7 +46,7 @@ export default async function HomePage() {
                 <p className="text-muted-foreground">{streamDescription}</p>
               </div>
 
-              {/* Video Player - FIXED: Removed onViewerCountChange prop */}
+              {/* Video Player */}
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 <StreamPlayer 
                   streamId={activeSession?.id}
@@ -63,14 +54,8 @@ export default async function HomePage() {
                 />
               </div>
 
-              {/* Stream Controls (only visible to streamer) */}
-              <StreamControls 
-                isStreaming={false}
-                streamConfig={defaultStreamConfig}
-                onStartStream={() => {}}
-                onStopStream={() => {}}
-                onConfigChange={() => {}}
-              />
+              {/* Stream Controls - Now properly handles client-side logic */}
+              <StreamControls />
             </div>
           </div>
 

@@ -12,42 +12,59 @@ import {
   MonitorOff,
   Settings
 } from 'lucide-react'
-import { StreamControlsProps } from '@/types'
+import { StreamConfig } from '@/types'
 
-export default function StreamControls({
-  isStreaming,
-  streamConfig,
-  onStartStream,
-  onStopStream,
-  onConfigChange
-}: StreamControlsProps) {
+export default function StreamControls() {
+  const [isStreaming, setIsStreaming] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [streamConfig, setStreamConfig] = useState<StreamConfig>({
+    video: true,
+    audio: true,
+    screen: false,
+    quality: 'auto'
+  })
+
+  const handleStartStream = () => {
+    setIsStreaming(true)
+    // TODO: Implement actual stream start logic
+    console.log('Starting stream with config:', streamConfig)
+  }
+
+  const handleStopStream = () => {
+    setIsStreaming(false)
+    // TODO: Implement actual stream stop logic
+    console.log('Stopping stream')
+  }
+
+  const handleConfigChange = (newConfig: StreamConfig) => {
+    setStreamConfig(newConfig)
+  }
 
   const toggleVideo = () => {
-    onConfigChange({
+    handleConfigChange({
       ...streamConfig,
       video: !streamConfig.video
     })
   }
 
   const toggleAudio = () => {
-    onConfigChange({
+    handleConfigChange({
       ...streamConfig,
       audio: !streamConfig.audio
     })
   }
 
   const toggleScreen = () => {
-    onConfigChange({
+    handleConfigChange({
       ...streamConfig,
       screen: !streamConfig.screen
     })
   }
 
   const handleQualityChange = (quality: string) => {
-    onConfigChange({
+    handleConfigChange({
       ...streamConfig,
-      quality: quality as any
+      quality: quality as StreamConfig['quality']
     })
   }
 
@@ -68,7 +85,7 @@ export default function StreamControls({
         {/* Start/Stop Stream */}
         {!isStreaming ? (
           <button
-            onClick={onStartStream}
+            onClick={handleStartStream}
             className="control-button bg-green-600 text-white hover:bg-green-700 px-6 py-3 text-base"
             disabled={!streamConfig.video && !streamConfig.audio && !streamConfig.screen}
           >
@@ -77,7 +94,7 @@ export default function StreamControls({
           </button>
         ) : (
           <button
-            onClick={onStopStream}
+            onClick={handleStopStream}
             className="control-button control-button-destructive px-6 py-3 text-base"
           >
             <Square className="w-5 h-5 mr-2" />

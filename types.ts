@@ -1,22 +1,57 @@
+import { ReactNode } from 'react'
+
+// Cosmic CMS Types
+export interface CosmicObject {
+  id: string
+  title: string
+  slug: string
+  type: string
+  status: 'published' | 'draft'
+  created_at: string
+  modified_at: string
+  metadata: Record<string, any>
+}
+
+// Stream Types
+export interface StreamSession extends CosmicObject {
+  metadata: {
+    status: 'scheduled' | 'live' | 'ended' | 'error'
+    platform: 'youtube' | 'twitch' | 'custom'
+    stream_key?: string
+    rtmp_url?: string
+    viewer_count: number
+    peak_viewers: number
+    duration: number
+    started_at?: string
+    ended_at?: string
+    title: string
+    description?: string
+    thumbnail?: {
+      url: string
+      imgix_url: string
+    }
+    tags?: string[]
+    category?: string
+  }
+}
+
 export interface StreamConfig {
   video: boolean
   audio: boolean
   screen: boolean
-  quality: 'auto' | 'high' | 'medium' | 'low'
+  quality: 'auto' | 'low' | 'medium' | 'high'
 }
 
-export interface StreamControlsProps {
-  isStreaming: boolean
-  streamConfig: StreamConfig
-  onStartStream: () => void
-  onStopStream: () => void
-  onConfigChange: (config: StreamConfig) => void
-}
-
+// Component Props Types
 export interface StreamPlayerProps {
   streamId?: string
   isStreamer: boolean
-  onViewerCountChange?: (count: number) => void
+  className?: string
+}
+
+export interface StreamStatusProps {
+  status: 'live' | 'scheduled' | 'ended' | 'error' | 'offline'
+  duration: number
 }
 
 export interface ViewerCountProps {
@@ -24,125 +59,47 @@ export interface ViewerCountProps {
   isLive: boolean
 }
 
-export interface StreamStatusProps {
-  status: 'live' | 'offline'
-  duration: number
+export interface StreamHistoryProps {
+  limit?: number
 }
 
-export interface StreamStats {
-  isLive: boolean
-  viewerCount: number
-  duration: number
-  bitrate: number
-  quality: 'auto' | 'high' | 'medium' | 'low'
+export interface StreamAnalyticsProps {
+  sessionId: string
+  timeRange?: '24h' | '7d' | '30d'
 }
 
-export interface PeerConfig {
-  host: string
-  port: number
-  path: string
-  secure: boolean
-}
-
-export interface StreamSession {
-  id: string
-  title: string
-  slug: string
-  created_at: string
-  metadata: {
-    status: 'live' | 'offline'
-    stream_key: string
-    viewer_count: number
-    peak_viewers: number
-    started_at: string
-    start_time: string
-    end_time?: string
-    ended_at?: string
-    duration?: number
-    platform: string
-    stream_url?: string
-    stream_type?: string
-    tags?: string[]
-    thumbnail?: {
-      imgix_url: string
-    }
-  }
-}
-
-export interface CreateStreamSessionData {
-  type: string
-  title: string
-  slug: string
-  metadata: {
-    start_time: string
-    viewer_count: number
-    peak_viewers: number
-    status: 'live' | 'offline'
-    stream_type: string
-    tags: string[]
-  }
-}
-
-export interface StreamSessionUpdate {
-  end_time?: string
-  duration?: number
-  status?: 'live' | 'offline' | 'ended'
-  viewer_count?: number
-  peak_viewers?: number
-}
-
-export interface ViewerAnalytics {
-  id: string
-  title: string
-  slug: string
-  created_at: string
-  modified_at: string
-  metadata: {
-    session_id: string
-    viewer_id: string
-    join_time: string
-    leave_time?: string
-    duration?: number
-    device_type: string
-    location?: {
-      country: string
-      city: string
-    }
-  }
-}
-
-export interface CosmicResponse<T> {
-  object?: T
-  objects: T[]
-  total: number
-}
-
-export interface PlatformSettings {
-  id: string
-  title: string
-  slug: string
+// Platform Settings
+export interface PlatformSettings extends CosmicObject {
   metadata: {
     stream_title: string
     stream_description: string
-    platform_name: string
-    chat_enabled: boolean
-    donations_enabled: boolean
-    subscriber_only_chat: boolean
-    overlay_theme: 'dark' | 'light'
-    primary_color: string
-    secondary_color: string
-    default_quality?: string
-    enable_chat?: boolean
-    enable_analytics?: boolean
-    auto_record?: boolean
+    default_thumbnail?: {
+      url: string
+      imgix_url: string
+    }
+    rtmp_settings?: {
+      server_url: string
+      stream_key: string
+    }
+    social_links?: {
+      youtube?: string
+      twitch?: string
+      twitter?: string
+      discord?: string
+    }
+    branding?: {
+      logo?: {
+        url: string
+        imgix_url: string
+      }
+      primary_color?: string
+      secondary_color?: string
+    }
   }
 }
 
-// Site Settings interface matching the Cosmic CMS structure
-export interface SiteSettings {
-  id: string
-  title: string
-  slug: string
+// Site Settings
+export interface SiteSettings extends CosmicObject {
   metadata: {
     livechat_enabled: boolean
     livechat_widget_id: string
@@ -152,3 +109,110 @@ export interface SiteSettings {
     google_analytics_id: string
   }
 }
+
+// Analytics Types
+export interface StreamAnalytics {
+  session_id: string
+  timestamp: string
+  viewer_count: number
+  duration: number
+  platform: string
+  quality_metrics?: {
+    bitrate: number
+    fps: number
+    dropped_frames: number
+  }
+  engagement_metrics?: {
+    chat_messages: number
+    reactions: number
+    shares: number
+  }
+}
+
+// API Response Types
+export interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: string
+  message?: string
+}
+
+// Error Types
+export interface StreamError {
+  code: string
+  message: string
+  details?: Record<string, any>
+}
+
+// UI Component Types
+export interface ButtonProps {
+  children: ReactNode
+  variant?: 'primary' | 'secondary' | 'destructive' | 'outline'
+  size?: 'sm' | 'md' | 'lg'
+  disabled?: boolean
+  loading?: boolean
+  onClick?: () => void
+  className?: string
+  type?: 'button' | 'submit' | 'reset'
+}
+
+export interface ModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title?: string
+  children: ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+}
+
+export interface ToastProps {
+  id: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message?: string
+  duration?: number
+  action?: {
+    label: string
+    onClick: () => void
+  }
+}
+
+// Form Types
+export interface FormFieldProps {
+  label: string
+  name: string
+  type?: 'text' | 'email' | 'password' | 'number' | 'textarea' | 'select'
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
+  options?: Array<{ value: string; label: string }>
+  error?: string
+  helpText?: string
+}
+
+// Navigation Types
+export interface NavItem {
+  label: string
+  href: string
+  icon?: ReactNode
+  badge?: string | number
+  active?: boolean
+  children?: NavItem[]
+}
+
+// Layout Types
+export interface LayoutProps {
+  children: ReactNode
+  title?: string
+  description?: string
+  noIndex?: boolean
+  className?: string
+}
+
+// Utility Types
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+}
+
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
+
+export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>
