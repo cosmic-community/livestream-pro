@@ -50,7 +50,7 @@ class WebRTCManager {
     // Add local stream tracks if available
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
-        // Fixed: Ensure localStream is not null before passing to addTrack
+        // Fixed: Add null check before using localStream
         if (this.localStream) {
           peer.addTrack(track, this.localStream)
         }
