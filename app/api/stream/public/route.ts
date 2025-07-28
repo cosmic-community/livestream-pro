@@ -10,13 +10,18 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
 
     // Check site maintenance mode
-    const siteSettings = await getSiteSettings()
-    if (siteSettings?.metadata.maintenance_mode) {
-      return NextResponse.json({
-        success: false,
-        error: 'Site is currently in maintenance mode',
-        message: siteSettings.metadata.maintenance_message || 'Please check back later'
-      } as ApiResponse, { status: 503 })
+    try {
+      const siteSettings = await getSiteSettings()
+      if (siteSettings?.metadata.maintenance_mode) {
+        return NextResponse.json({
+          success: false,
+          error: 'Site is currently in maintenance mode',
+          message: siteSettings.metadata.maintenance_message || 'Please check back later'
+        } as ApiResponse, { status: 503 })
+      }
+    } catch (error) {
+      // Continue if site settings are not available
+      console.log('Site settings not available:', error)
     }
 
     // Get specific stream
@@ -127,13 +132,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Check site maintenance mode
-    const siteSettings = await getSiteSettings()
-    if (siteSettings?.metadata.maintenance_mode) {
-      return NextResponse.json({
-        success: false,
-        error: 'Site is currently in maintenance mode',
-        message: siteSettings.metadata.maintenance_message || 'Please check back later'
-      } as ApiResponse, { status: 503 })
+    try {
+      const siteSettings = await getSiteSettings()
+      if (siteSettings?.metadata.maintenance_mode) {
+        return NextResponse.json({
+          success: false,
+          error: 'Site is currently in maintenance mode',
+          message: siteSettings.metadata.maintenance_message || 'Please check back later'
+        } as ApiResponse, { status: 503 })
+      }
+    } catch (error) {
+      // Continue if site settings are not available
+      console.log('Site settings not available:', error)
     }
 
     const session = await getStreamSession(streamId)

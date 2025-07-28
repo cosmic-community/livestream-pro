@@ -25,6 +25,9 @@ export async function POST(request: NextRequest) {
         status: 'live',
         stream_type: streamType,
         tags: ['live'],
+        started_at: new Date().toISOString(),
+        quality: quality || 'auto',
+        platform: 'web'
       }
     }
 
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      session
+      data: session
     })
   } catch (error) {
     console.error('Error starting stream:', error)

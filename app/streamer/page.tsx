@@ -43,7 +43,7 @@ export default function StreamerPage() {
     try {
       setIsStreaming(true)
       
-      // Create stream session in Cosmic
+      // Create stream session in Cosmic FIRST - this makes it appear on watch page
       const response = await fetch('/api/stream/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,16 +56,20 @@ export default function StreamerPage() {
       })
 
       const data = await response.json()
-      if (data.success && data.session) {
-        setCurrentSession(data.session)
+      if (data.success && data.data) {
+        setCurrentSession(data.data)
         
         // Set session ID in stream manager for consistent peer identification
-        streamManager.setSessionId(data.session.id)
+        streamManager.setSessionId(data.data.id)
         
-        console.log('Stream session created:', data.session)
+        console.log('✅ Stream session created and is now LIVE on watch page:', data.data)
+        
+        // Show success message
+        const watchUrl = `${window.location.origin}/watch/${data.data.id}`
+        console.log('🔗 Public watch URL:', watchUrl)
       }
 
-      // Start the actual stream using the StreamPlayer
+      // Start the actual WebRTC stream using the StreamPlayer
       if (streamPlayerRef.current) {
         await streamPlayerRef.current.startStream(streamConfig)
       }
@@ -97,6 +101,7 @@ export default function StreamerPage() {
           }),
         })
         
+        console.log('✅ Stream session ended and removed from watch page')
         setCurrentSession(null)
       }
     } catch (error) {
@@ -244,6 +249,31 @@ export default function StreamerPage() {
                 </div>
               )}
 
+              {/* Live Status Alert */}
+              {isStreaming && currentSession && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-green-600 dark:text-green-400 text-xl">🔴</div>
+                    <div>
+                      <h4 className="font-medium text-green-800 dark:text-green-200 mb-1">
+                        You're Live!
+                      </h4>
+                      <p className="text-green-700 dark:text-green-300 text-sm">
+                        Your stream is now visible on the watch page. Viewers can find you at{' '}
+                        <a
+                          href="/watch"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline font-medium"
+                        >
+                          /watch
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Quick Actions */}
               <div className="bg-muted/30 rounded-lg p-6">
                 <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
@@ -259,7 +289,7 @@ export default function StreamerPage() {
                     </a>
                   ) : (
                     <Link
-                      href="/"
+                      href="/watch"
                       className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg font-medium transition-colors"
                     >
                       View All Streams
