@@ -24,6 +24,7 @@ export interface Streamer extends CosmicObject {
   metadata: {
     username: string
     email: string
+    password_hash?: string
     profile_image?: CosmicFile
     bio?: string
     is_live: boolean

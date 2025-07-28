@@ -203,16 +203,16 @@ export function useStreamStats(streamId?: string) {
           // Find most popular category
           const categoryCount: Record<string, number> = {}
           streams.forEach(stream => {
-            if (stream.metadata.category) {
+            if (stream.metadata.category?.metadata?.name) {
               const categoryName = stream.metadata.category.metadata.name
               categoryCount[categoryName] = (categoryCount[categoryName] || 0) + 1
             }
           })
           
-          const topCategory = Object.keys(categoryCount).reduce((a, b) => 
-            categoryCount[a] > categoryCount[b] ? a : b, 
-            Object.keys(categoryCount)[0] || null
-          )
+          const categoryNames = Object.keys(categoryCount)
+          const topCategory = categoryNames.length > 0 
+            ? categoryNames.reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b)
+            : null
 
           setStats({
             totalStreams: streams.length,
