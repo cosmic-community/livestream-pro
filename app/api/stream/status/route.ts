@@ -69,20 +69,31 @@ export async function POST(request: NextRequest) {
       } as ApiResponse, { status: 400 })
     }
 
+    // Get current session to preserve existing data
+    const currentSession = await getStreamSession(sessionId)
+    if (!currentSession) {
+      return NextResponse.json({
+        success: false,
+        error: 'Stream session not found',
+        message: 'The requested stream session does not exist'
+      } as ApiResponse, { status: 404 })
+    }
+
     const updateData: any = {
       status
     }
 
     if (typeof viewerCount === 'number') {
       updateData.viewer_count = viewerCount
-      updateData.peak_viewers = Math.max(updateData.peak_viewers || 0, viewerCount)
+      // Update peak viewers if current count is higher
+      updateData.peak_viewers = Math.max(currentSession.metadata.peak_viewers || 0, viewerCount)
     }
 
     if (typeof duration === 'number') {
       updateData.duration = duration
     }
 
-    if (status === 'live' && !updateData.started_at) {
+    if (status === 'live' && !currentSession.metadata.started_at) {
       updateData.started_at = new Date().toISOString()
     }
 

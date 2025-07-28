@@ -94,7 +94,7 @@ export default function StreamDirectory({ streams, priority = false }: StreamDir
             </div>
 
             {/* Viewer Count for Live Streams */}
-            {stream.metadata?.status === 'live' && stream.metadata?.viewer_count && (
+            {stream.metadata?.status === 'live' && stream.metadata?.viewer_count !== undefined && (
               <div className="absolute top-3 right-3">
                 <div className="flex items-center gap-1 px-2 py-1 bg-black/70 rounded-full text-white text-xs">
                   <Users className="w-3 h-3" />
