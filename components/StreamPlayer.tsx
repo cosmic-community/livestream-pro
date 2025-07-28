@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
-import { StreamPlayerProps } from '@/types'
+import { StreamPlayerProps, StreamConfig } from '@/types'
 import { streamManager } from '@/lib/streaming'
 
 export interface StreamPlayerMethods {
@@ -101,7 +101,15 @@ const StreamPlayer = forwardRef<StreamPlayerMethods, StreamPlayerProps>(({
       // Use session ID for consistent streamer identification
       const sessionStreamerId = activeSession?.id ? `streamer-${activeSession.id}` : undefined
       
-      const streamId = await streamManager.startStream(config)
+      // Convert the config to StreamConfig by adding the missing quality property
+      const streamConfig: StreamConfig = {
+        video: config.video,
+        audio: config.audio,
+        screen: config.screen || false,
+        quality: 'auto' // Add the missing quality property with default value
+      }
+      
+      const streamId = await streamManager.startStream(streamConfig)
       console.log('Local stream started with ID:', streamId)
 
       const stream = streamManager.getLocalStream()
